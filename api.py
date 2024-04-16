@@ -8,6 +8,7 @@ import time
 import re
 import json
 import sys
+import http.cookies
 from time import sleep
 from urllib import request
 from urllib.request import Request as Reqtype
@@ -25,7 +26,7 @@ class Api:
         self.proxies=proxies
         self.specificID=specificID
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:52.0) Gecko/20100101 Firefox/52.0",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 12; 22081212G Build/UKQ1.230917.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/114.5.1419.81 Mobile Safari/537.36 BiliApp/7740200 mobi_app/android isNotchWindow/0 NotchHeight=29 mallVersion/7740200 mVersion/235 disable_rcmd/0",
             "Referer":"https://show.bilibili.com/",
             "Cache-Control":"max-age=0",
             "Upgrade-Insecure-Requests":"1",
@@ -46,8 +47,11 @@ class Api:
         self.user_data["specificID"] = specificID
         self.user_data["username"] = ""
         self.user_data["project_id"] = ""
+        self.user_data["deliver_info"] = ""
+        self.user_data["token"] = ""
         self.appName = "BilibiliShow_AutoOrder"
         self.selectedTicketInfo = "未选择"
+        self.user_data["cookie_dict"] = {}
         # ALL_USER_DATA_LIST = [""]
 
     def load_cookie(self):
@@ -76,7 +80,7 @@ class Api:
             else:
                 j = j[list(j.keys())[0]]
                 self.user_data["username"],self.headers["Cookie"] = j[0],j[1]
-
+            
     def _http(self,url,j=False,data=None,raw=False):
         data = data.encode() if type(data) == type("") else data
         try:
@@ -104,6 +108,11 @@ class Api:
         else:
             return res.read().decode("utf-8","ignore")
 
+    def getCSRF(self):
+        cookie = http.cookies.BaseCookie()
+        cookie.load(self.headers["Cookie"])
+        return cookie["bili_jct"].value
+    
     def orderInfo(self):
         # 获取目标
         self.user_data["project_id"] = re.search(r"id=\d+",self.menu("GET_SHOW")).group().split("=")[1]
@@ -124,16 +133,6 @@ class Api:
             fa = a["prov"]+a["city"]+a["area"]+a["addr"]
             self.user_data["deliver_info"] = {}
             self.user_data["deliver_info"]["name"],self.user_data["deliver_info"]["tel"],self.user_data["deliver_info"]["addr_id"],self.user_data["deliver_info"]["addr"] = a["name"],a["phone"],a["id"],fa
-            # self.user_data["pay_money"] += data["data"]["express_fee"]
-        # exit(0)
-        # exit(0)
-        # self.user_data["screen_id"],self.user_data["sku_id"],self.user_data["pay_money"] = data["data"]["screen_list"][CHOOSE_DAY-1]["id"]
-        # self.user_data["screen_id"] = "131890"
-        # sku_id = data["data"]["screen_list"][CHOOSE_DAY-1]["ticket_list"][CHOOSE_PRICE_LEVEL-1]["id"]
-        # self.user_data["sku_id"] = "391732"
-        # pay_money = int(data["data"]["screen_list"][config["screen_id"]]["ticket_list"][config["sku_id"]]["price"])
-        # self.user_data["pay_money"] = "10000"
-        # self.user_data["user_count"] = "1"
 
         # print("订单信息获取成功")
     
@@ -205,30 +204,69 @@ class Api:
         # 获取token
         url = "https://show.bilibili.com/api/ticket/order/prepare?project_id=" + self.user_data["project_id"]
 
-        payload = "count=" + str(self.user_data["user_count"]) + "&order_type=1&project_id=" + self.user_data["project_id"] + "&screen_id=" + str(self.user_data["screen_id"]) + "&sku_id=" + str(self.user_data["sku_id"]) + "&token="
+        payload = "count=" + str(self.user_data["user_count"]) + "&order_type=1&project_id=" + self.user_data["project_id"] + "&screen_id=" + str(self.user_data["screen_id"]) + "&sku_id=" + str(self.user_data["sku_id"]) + "&token=" + "&newRisk=true"
         # payload = "count=1&order_type=1&project_id=73710&screen_id=134762&sku_id=398405&token="       
-
+        
         data = self._http(url,True,payload)
-        if not data["data"]:
-            # self.error_handle("获取token失败")
-            timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ": "
-            print(timestr+"失败信息: " + data["msg"])
-            return 1
+        
+        # R.I.P. 旧滑块验证
 
-        if data["data"]["shield"]["verifyMethod"]:
+        # if not data["data"]:
+        #     # self.error_handle("获取token失败")
+        #     timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ": "
+        #     print(timestr+"失败信息: " + data["msg"])
+        #     return 1
+        # if data["data"]["shield"]["verifyMethod"]:
+        #     with open("url","w") as f:
+        #         print("需要验证，正在拉取验证码")
+        #         f.write(data["data"]["shield"]["naUrl"])
+        #     if self.token:
+        #         self.end_time = time.time()
+        #         if self.end_time - self.start_time > 60:
+        #             print(self.end_time - self.start_time)
+        #             self.sendNotification("该拉滑块验证码啦！")
+        #             self.start_time = self.end_time            
+        # self.user_data["token"] = data["data"]["token"]
+        # # print(data)
+        # # print(self.user_data["user_count"])
+        # print("\n购买Token获取成功")
+
+        if data["errno"] == -401:
+            _url = "https://api.bilibili.com/x/gaia-vgate/v1/register"
+            _payload = urlencode(data["data"]["ga_data"]["riskParams"])
+            _data = self._http(_url,True,_payload)
+            gt = _data["data"]["geetest"]["gt"]
+            challenge = _data["data"]["geetest"]["challenge"]
+            token = _data["data"]["token"]
             with open("url","w") as f:
-                print("需要验证，正在拉取验证码")
-                f.write(data["data"]["shield"]["naUrl"])
-            if self.token:
-                self.end_time = time.time()
-                if self.end_time - self.start_time > 60:
-                    print(self.end_time - self.start_time)
-                    self.sendNotification("该拉滑块验证码啦！")
-                    self.start_time = self.end_time            
-        self.user_data["token"] = data["data"]["token"]
-        # print(data)
-        # print(self.user_data["user_count"])
-        print("\n购买Token获取成功")
+                f.write("file://"+ os.path.abspath('.') + "/geetest-validator/index.html?gt=" + gt + "&challenge=" + challenge)
+            validate = input("暂时需要手动输入-validate:")
+            seccode = input("暂时需要手动输入-seccode:")
+            _url = "https://api.bilibili.com/x/gaia-vgate/v1/validate"
+            _payload = {
+                "challenge": challenge,
+                "token": token,
+                "seccode": seccode,
+                "csrf": self.getCSRF(),
+                "validate": validate
+            }
+            
+            _data = self._http(_url,True,urlencode(_payload))
+            print(_data)
+            if(_data["code"]==-111):
+                self.error_handle("csrf校验失败")
+            if _data["data"]["is_valid"] == 1:
+                print("极验GeeTest认证成功。")
+                return 0
+            else:
+                self.error_handle("极验GeeTest验证失败。")
+        else:
+            if not data["data"]:
+                timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ": "
+                print(timestr,"失败信息: ",data["msg"])
+                return 1
+            if data["data"]["token"]:
+                self.user_data["token"] = data["data"]["token"]
         return 0
 
     def orderCreate(self):
@@ -322,16 +360,16 @@ class Api:
                 print("糟糕，是张假票(同时锁定一张票，但是被其他人抢走了)\n马上重新开始抢票")
                 self.tray_notify("抢票失败", "糟糕，是张假票(同时锁定一张票，但是被其他人抢走了)\n马上重新开始抢票", "./ico/failed.ico", timeout=8)
         elif data["errno"] == 209002:
-            print(timestr+"未获取到购买人信息")
+            print(timestr,"未获取到购买人信息")
         elif "10005" in str(data["errno"]):    # Token过期
-            print(timestr+"Token已过期! 正在重新获取")
+            print(timestr,"Token已过期! 正在重新获取")
             self.tokenGet()
         elif "100009" in str(data["errno"]):
-            print(timestr+"错误信息：当前暂无余票，请耐心等候。")
+            print(timestr,"错误信息：当前暂无余票，请耐心等候。")
         elif "100001" in str(data["errno"]):
-            print(timestr+"错误信息：获取频率过快。")
+            print(timestr,"错误信息：获取频率过快或无票。")
         else:
-            print(timestr+"错误信息: ", data)
+            print(timestr,"错误信息: ", data)
             # print(data)
         return 0
 
