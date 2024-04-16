@@ -238,10 +238,11 @@ class Api:
             gt = _data["data"]["geetest"]["gt"]
             challenge = _data["data"]["geetest"]["challenge"]
             token = _data["data"]["token"]
+            print("请从“滑块验证”打开的浏览器中验证后获取以下凭据值（如未开启请手动开启，有提示框请按确定）：")
             with open("url","w") as f:
                 f.write("file://"+ os.path.abspath('.') + "/geetest-validator/index.html?gt=" + gt + "&challenge=" + challenge)
-            validate = input("暂时需要手动输入-validate:")
-            seccode = input("暂时需要手动输入-seccode:")
+            validate = input("validate: ")
+            seccode = input("seccode: ")
             _url = "https://api.bilibili.com/x/gaia-vgate/v1/validate"
             _payload = {
                 "challenge": challenge,
@@ -250,7 +251,6 @@ class Api:
                 "csrf": self.getCSRF(),
                 "validate": validate
             }
-            
             _data = self._http(_url,True,urlencode(_payload))
             print(_data)
             if(_data["code"]==-111):
@@ -364,12 +364,12 @@ class Api:
         elif "10005" in str(data["errno"]):    # Token过期
             print(timestr,"Token已过期! 正在重新获取")
             self.tokenGet()
-        elif "100009" in str(data["errno"]):
-            print(timestr,"错误信息：当前暂无余票，请耐心等候。")
-        elif "100001" in str(data["errno"]):
-            print(timestr,"错误信息：获取频率过快/无票/参数有误。")
+        # elif "100009" in str(data["errno"]):
+        #     print(timestr,"错误信息：当前暂无余票，请耐心等候。")
+        # elif "100001" in str(data["errno"]):
+        #     print(timestr,"错误信息：获取频率过快或无票。")
         else:
-            print(timestr,"错误信息: ", data)
+            print(timestr,"错误信息: ", data["msg"])
             # print(data)
         return 0
 
