@@ -47,7 +47,7 @@ class Api:
         self.user_data["specificID"] = specificID
         self.user_data["username"] = ""
         self.user_data["project_id"] = ""
-        self.user_data["deliver_info"] = ""
+        # self.user_data["deliver_info"] = ""
         self.user_data["token"] = ""
         self.appName = "BilibiliShow_AutoOrder"
         self.selectedTicketInfo = "未选择"
@@ -143,7 +143,7 @@ class Api:
             print(data)
             return 1
         e = data["data"]["express_fee"]
-        if(e == -1):
+        if(e == -1 or e == -2):
             return 0
         return e
 
@@ -367,7 +367,7 @@ class Api:
         elif "100009" in str(data["errno"]):
             print(timestr,"错误信息：当前暂无余票，请耐心等候。")
         elif "100001" in str(data["errno"]):
-            print(timestr,"错误信息：获取频率过快或无票。")
+            print(timestr,"错误信息：获取频率过快/无票/参数有误。")
         else:
             print(timestr,"错误信息: ", data)
             # print(data)
