@@ -242,7 +242,8 @@ class Api:
             with open("url","w") as f:
                 f.write("file://"+ os.path.abspath('.') + "/geetest-validator/index.html?gt=" + gt + "&challenge=" + challenge)
             validate = input("validate: ")
-            seccode = input("seccode: ")
+            # seccode = input("seccode:")
+            seccode = validate + "|jordan"
             _url = "https://api.bilibili.com/x/gaia-vgate/v1/validate"
             _payload = {
                 "challenge": challenge,
