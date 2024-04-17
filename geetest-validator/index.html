@@ -44,9 +44,6 @@
     </div>
     <br>
 
-    <div id="btn-result" class="btn">5. 结果</div>
-    <br><br>
-
     <div>
         <label for="validate">validate: </label>
         <input class="inp" id="validate" type="text" readonly="readonly">
@@ -58,6 +55,7 @@
         <input class="inp" id="seccode" type="text" readonly="readonly">
     </div>
     <br>
+    <div id="copy-alert" style="display: none;">validate 已保存到剪贴板</div>
 
 
     <script src="js/jquery.js"></script>
@@ -69,15 +67,28 @@
             captchaObj.onReady(function () {
                 $("#wait").hide();
             });
-            $('#btn-result').click(function () {
+            captchaObj.onSuccess(function () {
                 var result = captchaObj.getValidate();
-                if (!result) {
-                    return alert('请完成验证');
-                }
                 var validate = $('#validate')[0];
                 var seccode = $('#seccode')[0];
                 validate.value = result.geetest_validate;
                 seccode.value = result.geetest_seccode;
+
+                // 创建一个临时的textarea元素
+                var tempInput = document.createElement("textarea");
+                tempInput.value = result.geetest_validate;
+                document.body.appendChild(tempInput);
+                // 选中并复制到剪贴板
+                tempInput.select();
+                document.execCommand("copy");
+                // 移除临时的textarea元素
+                document.body.removeChild(tempInput);
+                // 显示提示
+                var copyAlert = $('#copy-alert');
+                copyAlert.show();
+                setTimeout(function () {
+                    copyAlert.hide();
+                }, 3000);
             });
             // 更多前端接口说明请参见：http://docs.geetest.com/install/client/web-front/
         };
