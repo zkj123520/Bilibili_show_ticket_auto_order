@@ -44,9 +44,6 @@
     </div>
     <br>
 
-    <div id="btn-result" class="btn">5. 结果</div>
-    <br><br>
-
     <div>
         <label for="validate">validate: </label>
         <input class="inp" id="validate" type="text" readonly="readonly">
@@ -70,11 +67,8 @@
             captchaObj.onReady(function () {
                 $("#wait").hide();
             });
-            $('#btn-result').click(function () {
+            captchaObj.onSuccess(function () {
                 var result = captchaObj.getValidate();
-                if (!result) {
-                    return alert('请完成验证');
-                }
                 var validate = $('#validate')[0];
                 var seccode = $('#seccode')[0];
                 validate.value = result.geetest_validate;
