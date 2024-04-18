@@ -9,6 +9,7 @@ import re
 import json
 import sys
 import http.cookies
+import qrcode
 from time import sleep
 from urllib import request
 from urllib.request import Request as Reqtype
@@ -26,17 +27,19 @@ class Api:
         self.proxies=proxies
         self.specificID=specificID
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Linux; Android 12; 22081212G Build/UKQ1.230917.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/114.5.1419.81 Mobile Safari/537.36 BiliApp/7740200 mobi_app/android isNotchWindow/0 NotchHeight=29 mallVersion/7740200 mVersion/235 disable_rcmd/0",
-            "Referer":"https://show.bilibili.com/",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.1.4.514 Safari/537.36",
+            "Referer":"https://mall.bilibili.com/",
+            "Origin":"https://mall.bilibili.com/",
+            "Pregma":"no-cache",
             "Cache-Control":"max-age=0",
             "Upgrade-Insecure-Requests":"1",
-            "Sec-Fetch-Site":"same-origin",
+            "Sec-Fetch-Site":"none",
             "Sec-Fetch-Mode":"navigate",
             "Sec-Fetch-User":"?1",
             "Sec-Fetch-Dest":"document",
             "Cookie":"a=b;",
             "Accept": "*/*",
-            "Accept-Language": "zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",
+            "Accept-Language": "zh-CN,zh;q=0.9",
             "Accept-Encoding": "",
             "Connection": "keep-alive"
         }
@@ -51,7 +54,6 @@ class Api:
         self.user_data["token"] = ""
         self.appName = "BilibiliShow_AutoOrder"
         self.selectedTicketInfo = "未选择"
-        self.user_data["cookie_dict"] = {}
         # ALL_USER_DATA_LIST = [""]
 
     def load_cookie(self):
@@ -83,22 +85,22 @@ class Api:
             
     def _http(self,url,j=False,data=None,raw=False):
         data = data.encode() if type(data) == type("") else data
-        try:
-            if self.proxies and data:
-                opener = request.build_opener(request.ProxyHandler({'http':self.proxies,'https':self.proxies}))
-                res = opener.open(Reqtype(url,headers=self.headers,method="POST",data=data),timeout=120)
-            elif self.proxies and not data:
-                opener = request.build_opener(request.ProxyHandler({'http':self.proxies,'https':self.proxies}))
-                res = opener.open(Reqtype(url,headers=self.headers,method="GET"),timeout=120)
-            elif data and not self.proxies:
-                res = request.urlopen(Reqtype(url,headers=self.headers,method="POST",data=data),timeout=120)
-            else:
-                res = request.urlopen(Reqtype(url,headers=self.headers,method="GET"),timeout=120)
-        except Exception as e:
-            print("请求超时 请检查网络")
-            print(e)
-            self.error_handle("ip可能被风控，请求地址: " + url)
-
+        # try:
+        if self.proxies and data:
+            opener = request.build_opener(request.ProxyHandler({'http':self.proxies,'https':self.proxies}))
+            res = opener.open(Reqtype(url,headers=self.headers,method="POST",data=data),timeout=120)
+        elif self.proxies and not data:
+            opener = request.build_opener(request.ProxyHandler({'http':self.proxies,'https':self.proxies}))
+            res = opener.open(Reqtype(url,headers=self.headers,method="GET"),timeout=120)
+        elif data and not self.proxies:
+            res = request.urlopen(Reqtype(url,headers=self.headers,method="POST",data=data),timeout=120)
+        else:
+            res = request.urlopen(Reqtype(url,headers=self.headers,method="GET"),timeout=120)
+        # except Exception as e:
+        #     print("请求超时 请检查网络")
+        #     print(e)
+        #     self.error_handle("ip可能被风控。请求地址: " + url)
+        # print(res)
         if res.code != 200:
             self.error_handle("ip可能被风控，请求地址: " + url)
         if j:
@@ -259,6 +261,8 @@ class Api:
             if _data["data"]["is_valid"] == 1:
                 print("极验GeeTest认证成功。")
                 return 0
+            elif _data["code"]==100001:
+                self.error_handle("验证码校验失败。")
             else:
                 self.error_handle("极验GeeTest验证失败。")
         else:
@@ -338,7 +342,7 @@ class Api:
         timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
         data = self._http(url,True,urlencode(payload).replace("%27true%27","true").replace("%27","%22"))
         if data["errno"] == 0:
-            if self.checkOrder():
+            if self.checkOrder(data["data"]["token"],data["data"]["orderId"]):
                 print("已成功抢到票, 请在10分钟内完成支付.实际成交时间:"+timestr)
                 trayNotifyMessage = timestr+"已成功抢到票, 请在10分钟内完成支付" + "\n" + "购票人："
                 # + thisBuyerInfo + self.selectedTicketInfo + "\n"
@@ -349,6 +353,8 @@ class Api:
                             trayNotifyMessage += ['buyer_info'][i][0] + " "
                         else:
                             trayNotifyMessage += payload['buyer_info'][i]["name"] + " "
+                elif "buyer" in payload:
+                    trayNotifyMessage += payload["buyer"]
                 trayNotifyMessage += "\n" + self.selectedTicketInfo
                 # check if trayNotifyMessage is too long
                 if len(trayNotifyMessage) > 500:
@@ -365,29 +371,43 @@ class Api:
         elif "10005" in str(data["errno"]):    # Token过期
             print(timestr,"Token已过期! 正在重新获取")
             self.tokenGet()
-        # elif "100009" in str(data["errno"]):
-        #     print(timestr,"错误信息：当前暂无余票，请耐心等候。")
-        # elif "100001" in str(data["errno"]):
-        #     print(timestr,"错误信息：获取频率过快或无票。")
+        elif "100009" in str(data["errno"]):
+            print(timestr,"错误信息：当前暂无余票，请耐心等候。")
+        elif "100001" in str(data["errno"]):
+            print(timestr,"错误信息：获取频率过快或无票。")
         else:
-            print(timestr,"错误信息: ", data["msg"])
+            print(timestr,"错误信息: ", data["msg"], "errno:", data["errno"])
             # print(data)
         return 0
 
-    def checkOrder(self):
+    def checkOrder(self,_token,_orderId):
         timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))+":"
         print(timestr+"下单成功！正在检查票务状态...请稍等")
         self.tray_notify("下单成功", "正在检查票务状态...请稍等", "./ico/info.ico", timeout=5)
-        sleep(5)
-        url = "https://show.bilibili.com/api/ticket/order/list?page=0&page_size=10"
+        # sleep(5)
+        # url = "https://show.bilibili.com/api/ticket/order/list?page=0&page_size=10"
+        # data = self._http(url,True)
+        # # print(data)
+        # if data["errno"] != 0:
+        #     print("检测到网络波动，正在重新检查...")
+        #     return self.checkOrder()
+        # elif not data["data"]["list"]:
+        #     return 0
+        # elif data['data']['list'][0]['status'] == 1:
+        #     return 1
+        # else:
+        #     return 0
+        url = "https://show.bilibili.com/api/ticket/order/createstatus?token="+_token+"&timestamp="+str(int(round(time.time() * 1000)))+"&project_id="+self.user_data["project_id"]+"&orderId="+str(_orderId)
         data = self._http(url,True)
-        # print(data)
-        if data["errno"] != 0:
-            print("检测到网络波动，正在重新检查...")
-            return self.checkOrder()
-        elif not data["data"]["list"]:
-            return 0
-        elif data['data']['list'][0]['status'] == 1:
+        if(data["errno"] == 0):
+            _qrcode = data["data"]["payParam"]["code_url"]
+            print("请使用微信/QQ/支付宝扫描二维码完成支付")
+            print("请使用微信/QQ/支付宝扫描二维码完成支付")
+            print("请使用微信/QQ/支付宝扫描二维码完成支付")
+            qr_gen = qrcode.QRCode()
+            qr_gen.add_data(_qrcode)
+            qr_gen.print_ascii()
+            # print(qrcode)
             return 1
         else:
             return 0
@@ -551,7 +571,7 @@ class Api:
             # if self.tokenGet():
                 # continue
             if self.orderCreate():
-                open("url","w").write("https://show.bilibili.com/orderlist")
+                # open("url","w").write("https://show.bilibili.com/orderlist")
                 os.system("pause")
                 break
 
