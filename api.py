@@ -38,7 +38,7 @@ class Api:
             "Sec-Fetch-User":"?1",
             "Sec-Fetch-Dest":"document",
             "Cookie":"a=b;",
-            "Accept": "*/*",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "Accept-Language": "zh-CN,zh;q=0.9",
             "Accept-Encoding": "",
             "Connection": "keep-alive"
@@ -85,30 +85,30 @@ class Api:
             
     def _http(self,url,j=False,data=None,raw=False):
         data = data.encode() if type(data) == type("") else data
-        # try:
-        if self.proxies and data:
-            opener = request.build_opener(request.ProxyHandler({'http':self.proxies,'https':self.proxies}))
-            res = opener.open(Reqtype(url,headers=self.headers,method="POST",data=data),timeout=120)
-        elif self.proxies and not data:
-            opener = request.build_opener(request.ProxyHandler({'http':self.proxies,'https':self.proxies}))
-            res = opener.open(Reqtype(url,headers=self.headers,method="GET"),timeout=120)
-        elif data and not self.proxies:
-            res = request.urlopen(Reqtype(url,headers=self.headers,method="POST",data=data),timeout=120)
+        try:
+            if self.proxies and data:
+                opener = request.build_opener(request.ProxyHandler({'http':self.proxies,'https':self.proxies}))
+                res = opener.open(Reqtype(url,headers=self.headers,method="POST",data=data),timeout=120)
+            elif self.proxies and not data:
+                opener = request.build_opener(request.ProxyHandler({'http':self.proxies,'https':self.proxies}))
+                res = opener.open(Reqtype(url,headers=self.headers,method="GET"),timeout=120)
+            elif data and not self.proxies:
+                res = request.urlopen(Reqtype(url,headers=self.headers,method="POST",data=data),timeout=120)
+            else:
+                res = request.urlopen(Reqtype(url,headers=self.headers,method="GET"),timeout=120)
+        except Exception as e:
+            print("请求超时 请检查网络")
+            print(e)
+            # self.error_handle("ip可能被风控。请求地址: " + url)
         else:
-            res = request.urlopen(Reqtype(url,headers=self.headers,method="GET"),timeout=120)
-        # except Exception as e:
-        #     print("请求超时 请检查网络")
-        #     print(e)
-        #     self.error_handle("ip可能被风控。请求地址: " + url)
-        # print(res)
-        if res.code != 200:
-            self.error_handle("ip可能被风控，请求地址: " + url)
-        if j:
-            return json.loads(res.read().decode("utf-8","ignore"))
-        elif raw:
-            return res
-        else:
-            return res.read().decode("utf-8","ignore")
+            if res.code != 200:
+                self.error_handle("ip可能被风控，请求地址: " + url)
+            if j:
+                return json.loads(res.read().decode("utf-8","ignore"))
+            elif raw:
+                return res
+            else:
+                return res.read().decode("utf-8","ignore")
 
     def getCSRF(self):
         cookie = http.cookies.BaseCookie()
@@ -341,43 +341,44 @@ class Api:
                 }
         timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
         data = self._http(url,True,urlencode(payload).replace("%27true%27","true").replace("%27","%22"))
-        if data["errno"] == 0:
-            if self.checkOrder(data["data"]["token"],data["data"]["orderId"]):
-                print("已成功抢到票, 请在10分钟内完成支付.实际成交时间:"+timestr)
-                trayNotifyMessage = timestr+"已成功抢到票, 请在10分钟内完成支付" + "\n" + "购票人："
-                # + thisBuyerInfo + self.selectedTicketInfo + "\n"
-                # Add buyer info
-                if "buyer_info" in payload:
-                    for i in range(0, len(payload["buyer_info"])):
-                        if self.user_data["auth_type"] == 0:
-                            trayNotifyMessage += ['buyer_info'][i][0] + " "
-                        else:
-                            trayNotifyMessage += payload['buyer_info'][i]["name"] + " "
-                elif "buyer" in payload:
-                    trayNotifyMessage += payload["buyer"]
-                trayNotifyMessage += "\n" + self.selectedTicketInfo
-                # check if trayNotifyMessage is too long
-                if len(trayNotifyMessage) > 500:
-                    trayNotifyMessage = trayNotifyMessage[:500] + "..."
-                self.tray_notify("抢票成功", trayNotifyMessage, "./ico/success.ico", timeout=20)
-                if self.token:
-                    self.sendNotification(trayNotifyMessage)
-                return 1
+        if data:
+            if data["errno"] == 0:
+                if self.checkOrder(data["data"]["token"],data["data"]["orderId"]):
+                    print("已成功抢到票, 请在10分钟内完成支付.实际成交时间:"+timestr)
+                    trayNotifyMessage = timestr+"已成功抢到票, 请在10分钟内完成支付" + "\n" + "购票人："
+                    # + thisBuyerInfo + self.selectedTicketInfo + "\n"
+                    # Add buyer info
+                    if "buyer_info" in payload:
+                        for i in range(0, len(payload["buyer_info"])):
+                            if self.user_data["auth_type"] == 0:
+                                trayNotifyMessage += ['buyer_info'][i][0] + " "
+                            else:
+                                trayNotifyMessage += payload['buyer_info'][i]["name"] + " "
+                    elif "buyer" in payload:
+                        trayNotifyMessage += payload["buyer"]
+                    trayNotifyMessage += "\n" + self.selectedTicketInfo
+                    # check if trayNotifyMessage is too long
+                    if len(trayNotifyMessage) > 500:
+                        trayNotifyMessage = trayNotifyMessage[:500] + "..."
+                    self.tray_notify("抢票成功", trayNotifyMessage, "./ico/success.ico", timeout=20)
+                    if self.token:
+                        self.sendNotification(trayNotifyMessage)
+                    return 1
+                else:
+                    print("糟糕，是张假票(同时锁定一张票，但是被其他人抢走了)\n马上重新开始抢票")
+                    self.tray_notify("抢票失败", "糟糕，是张假票(同时锁定一张票，但是被其他人抢走了)\n马上重新开始抢票", "./ico/failed.ico", timeout=8)
+            elif data["errno"] == 209002:
+                print(timestr,"未获取到购买人信息")
+            elif "10005" in str(data["errno"]):    # Token过期
+                print(timestr,"Token已过期! 正在重新获取")
+                self.tokenGet()
+            elif "100009" in str(data["errno"]):
+                print(timestr,"错误信息：当前暂无余票，请耐心等候。")
+            elif "100001" in str(data["errno"]):
+                print(timestr,"错误信息：获取频率过快或无票。")
             else:
-                print("糟糕，是张假票(同时锁定一张票，但是被其他人抢走了)\n马上重新开始抢票")
-                self.tray_notify("抢票失败", "糟糕，是张假票(同时锁定一张票，但是被其他人抢走了)\n马上重新开始抢票", "./ico/failed.ico", timeout=8)
-        elif data["errno"] == 209002:
-            print(timestr,"未获取到购买人信息")
-        elif "10005" in str(data["errno"]):    # Token过期
-            print(timestr,"Token已过期! 正在重新获取")
-            self.tokenGet()
-        elif "100009" in str(data["errno"]):
-            print(timestr,"错误信息：当前暂无余票，请耐心等候。")
-        elif "100001" in str(data["errno"]):
-            print(timestr,"错误信息：获取频率过快或无票。")
-        else:
-            print(timestr,"错误信息: ", data["msg"], "errno:", data["errno"])
-            # print(data)
+                print(timestr,"错误信息: ", data["msg"], "errno:", data["errno"])
+                # print(data)
         return 0
 
     def checkOrder(self,_token,_orderId):
