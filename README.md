@@ -1,10 +1,16 @@
 # Bilibili_show_ticket_auto_order
 
-## 截止到 2023/12/12 仍然可用
+## 截止到 2024/4/23 仍然可用
 
 <img width="273" alt="屏幕截图 2023-08-09 182035" src="https://github.com/fengx1a0/Bilibili_show_ticket_auto_order/assets/74698099/f0b2d1ad-928b-498d-9a79-f735e3f01c00">
 
 <img width="277" alt="屏幕截图 2023-08-09 182012" src="https://github.com/fengx1a0/Bilibili_show_ticket_auto_order/assets/74698099/4363ff9a-23a7-4f31-b0ea-0919ed1279d1">
+
+## 本软件承诺不包含任何个人信息采集与远程遥测组件，开发者不会远程对程序本身、账号以及账号所有者的任何信息进行任何恶意操作
+
+## 本软件无法保证 100% 命中率和 100% 不受哔哩哔哩安全团队行为风险控制限制，一切交给天意
+
+## 本软件可能无法及时跟进哔哩哔哩验证码机制更新，望知悉
 
 # 原介绍
 
