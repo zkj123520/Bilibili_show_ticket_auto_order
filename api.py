@@ -38,7 +38,7 @@ class Api:
             "Sec-Fetch-User":"?1",
             "Sec-Fetch-Dest":"document",
             "Cookie":"a=b;",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "Accept": "*/*",
             "Accept-Language": "zh-CN,zh;q=0.9",
             "Accept-Encoding": "",
             "Connection": "keep-alive"
@@ -54,6 +54,7 @@ class Api:
         self.user_data["token"] = ""
         self.appName = "BilibiliShow_AutoOrder"
         self.selectedTicketInfo = "未选择"
+        self.userCountLimit = ""
         # ALL_USER_DATA_LIST = [""]
 
     def load_cookie(self):
@@ -121,15 +122,16 @@ class Api:
         # print(self.user_data["project_id"])
         # exit(0)
         # 获取订单信息
-        url = "https://show.bilibili.com/api/ticket/project/get?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"]
+        url = "https://show.bilibili.com/api/ticket/project/getV2?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"] + "&requestSource=pc-new"
         data = self._http(url,True)
         if not data["data"]:
             print(data)
             return 1
         # print(self.menu("GET_ORDER_IF",data["data"]))
         self.setAuthType(data)
+
         # print(self.user_data["auth_type"])
-        self.user_data["screen_id"],self.user_data["sku_id"],self.user_data["pay_money"] = self.menu("GET_ORDER_IF",data["data"])
+        self.user_data["screen_id"],self.user_data["sku_id"],self.user_data["pay_money"],self.userCountLimit = self.menu("GET_ORDER_IF",data["data"])
         if(data["data"]["has_paper_ticket"]):
             a = self.addressInfo()
             fa = a["prov"]+a["city"]+a["area"]+a["addr"]
@@ -153,16 +155,12 @@ class Api:
         if not data:
             self.error_handle("项目不存在")
         self.user_data["auth_type"] = ""
-        for _ in data["data"]["performance_desc"]["list"]:
-            if _["module"] == "base_info":
-                for i in _["details"]:
-                    if i["title"] == "实名认证" or i["title"] == "实名登记" or i["title"] == "实名":
-                        if "一单一证" in i["content"]:
-                            self.user_data["auth_type"] = 1
-                        elif "一人一证" in i["content"] or "一人一票" in i["content"]:
-                            self.user_data["auth_type"] = 2
-                if not self.user_data["auth_type"]:
-                    self.user_data["auth_type"] = 0
+        if data['data']['id_bind']:
+            # 哔哩哔哩会员购移动端的脚本代码明确表述了id_bind=1为一单一证，id_bind=2为一票一证，与脚本内部现行判断一致
+            # 关键字检测太考验维护频率了
+            self.user_data["auth_type"] = data['data']['id_bind'] 
+        else:
+            self.user_data["auth_type"] = 0
 
     def buyerinfo(self):
         if self.user_data["auth_type"] == 0:
@@ -205,10 +203,20 @@ class Api:
     def tokenGet(self):
         # 获取token
         url = "https://show.bilibili.com/api/ticket/order/prepare?project_id=" + self.user_data["project_id"]
-
-        payload = "count=" + str(self.user_data["user_count"]) + "&order_type=1&project_id=" + self.user_data["project_id"] + "&screen_id=" + str(self.user_data["screen_id"]) + "&sku_id=" + str(self.user_data["sku_id"]) + "&token=" + "&newRisk=true"
-        # payload = "count=1&order_type=1&project_id=73710&screen_id=134762&sku_id=398405&token="       
-        
+        payload = {
+            'count': str(self.user_data["user_count"]),
+            'project_id': self.user_data["project_id"],
+            'screen_id': self.user_data["screen_id"],
+            'order_type': '1',
+            'sku_id': str(self.user_data["sku_id"]),
+            'buyer_info': '',
+            'token': '',
+            "ignoreRequestLimit": 'true',
+            'ticket_agent': '',
+            'newRisk': 'true',
+            'requestSource': 'neul-next'
+        }
+        payload = urlencode(payload)
         data = self._http(url,True,payload)
         
         # R.I.P. 旧滑块验证
@@ -233,46 +241,51 @@ class Api:
         # # print(self.user_data["user_count"])
         # print("\n购买Token获取成功")
 
-        if data["errno"] == -401:
-            _url = "https://api.bilibili.com/x/gaia-vgate/v1/register"
-            _payload = urlencode(data["data"]["ga_data"]["riskParams"])
-            _data = self._http(_url,True,_payload)
-            gt = _data["data"]["geetest"]["gt"]
-            challenge = _data["data"]["geetest"]["challenge"]
-            token = _data["data"]["token"]
-            print("请从“滑块验证”打开的浏览器中验证后获取以下凭据值（如未开启请手动开启，有提示框请按确定）：")
-            with open("url","w") as f:
-                f.write("file://"+ os.path.abspath('.') + "/geetest-validator/index.html?gt=" + gt + "&challenge=" + challenge)
-            validate = input("validate: ")
-            # seccode = input("seccode:")
-            seccode = validate + "|jordan"
-            _url = "https://api.bilibili.com/x/gaia-vgate/v1/validate"
-            _payload = {
-                "challenge": challenge,
-                "token": token,
-                "seccode": seccode,
-                "csrf": self.getCSRF(),
-                "validate": validate
-            }
-            _data = self._http(_url,True,urlencode(_payload))
-            print(_data)
-            if(_data["code"]==-111):
-                self.error_handle("csrf校验失败")
-            if _data["data"]["is_valid"] == 1:
-                print("极验GeeTest认证成功。")
-                return 0
-            elif _data["code"]==100001:
-                self.error_handle("验证码校验失败。")
+        if data:
+            if data["errno"] == -401:
+                _url = "https://api.bilibili.com/x/gaia-vgate/v1/register"
+                _payload = urlencode(data["data"]["ga_data"]["riskParams"])
+                _data = self._http(_url,True,_payload)
+                gt = _data["data"]["geetest"]["gt"]
+                challenge = _data["data"]["geetest"]["challenge"]
+                token = _data["data"]["token"]
+                print("请从“滑块验证”打开的浏览器中验证后获取以下凭据值（如未开启请手动开启，有提示框请按确定）：")
+                with open("url","w") as f:
+                    f.write("file://"+ os.path.abspath('.') + "/geetest-validator/index.html?gt=" + gt + "&challenge=" + challenge)
+                validate = input("validate: ")
+                # seccode = input("seccode:")
+                seccode = validate + "|jordan"
+                _url = "https://api.bilibili.com/x/gaia-vgate/v1/validate"
+                _payload = {
+                    "challenge": challenge,
+                    "token": token,
+                    "seccode": seccode,
+                    "csrf": self.getCSRF(),
+                    "validate": validate
+                }
+                _data = self._http(_url,True,urlencode(_payload))
+                print(_data)
+                if(_data["code"]==-111):
+                    self.error_handle("csrf校验失败")
+                if _data["data"]["is_valid"] == 1:
+                    print("极验GeeTest认证成功。")
+                    return 0
+                elif _data["code"]==100001:
+                    self.error_handle("验证码校验失败。")
+                else:
+                    self.error_handle("极验GeeTest验证失败。")
+            elif data["errno"] == 100041:
+                self.error_handle("指定展览/演出未开票或账号异常")
             else:
-                self.error_handle("极验GeeTest验证失败。")
-        else:
-            if not data["data"]:
-                timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ": "
-                print(timestr,"失败信息: ",data["msg"])
-                return 1
-            if data["data"]["token"]:
-                self.user_data["token"] = data["data"]["token"]
+                if not data["data"]:
+                    timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ": "
+                    print(timestr,"失败信息: ",data["msg"])
+                    return 1
+                if data["data"]["token"]:
+                    self.user_data["token"] = data["data"]["token"]
         return 0
+        
+
 
     def orderCreate(self):
         # 创建订单
@@ -376,8 +389,21 @@ class Api:
                 print(timestr,"错误信息：当前暂无余票，请耐心等候。")
             elif "100001" in str(data["errno"]):
                 print(timestr,"错误信息：获取频率过快或无票。")
+            elif "100079" in str(data["errno"]):
+                trayNotifyMessage = ""
+                if "buyer_info" in payload:
+                    for i in range(0, len(payload["buyer_info"])):
+                        if self.user_data["auth_type"] == 0:
+                            trayNotifyMessage += ['buyer_info'][i][0] + " "
+                        else:
+                            trayNotifyMessage += payload['buyer_info'][i]["name"] + " "
+                elif "buyer" in payload:
+                    trayNotifyMessage += payload["buyer"]
+                trayNotifyMessage += "\n" + self.selectedTicketInfo
+                self.tray_notify("存在未付款订单", trayNotifyMessage, "./ico/success.ico", timeout=20)
+                self.error_handle(timestr,"指定的购买人存在已付款订单")
             else:
-                print(timestr,"错误信息: ", data["msg"], "errno:", data["errno"])
+                print(timestr,"错误信息: ["+str(data["errno"])+"]", data["msg"])
                 # print(data)
         return 0
 
@@ -452,14 +478,14 @@ class Api:
                     self.error_handle("请输入正确序号")
             except:
                 self.error_handle("请输入正确数字")
-            self.selectedTicketInfo = data["name"] + " " + data["screen_list"][date]["name"] + " " + data["screen_list"][date]["ticket_list"][choice]["desc"]+ " " + str(data["screen_list"][date]["ticket_list"][choice]["price"]//100)+ " " +"RMB"
+            self.selectedTicketInfo = data["name"] + " " + data["screen_list"][date]["name"] + " " + data["screen_list"][date]["ticket_list"][choice]["desc"]+ " " + str(data["screen_list"][date]["ticket_list"][choice]["price"]//100)+ " " +"CNY"
             print("\n已选择：", self.selectedTicketInfo)
-            return data["screen_list"][date]["id"],data["screen_list"][date]["ticket_list"][choice]["id"],data["screen_list"][date]["ticket_list"][choice]["price"]
+            return data["screen_list"][date]["id"],data["screen_list"][date]["ticket_list"][choice]["id"],data["screen_list"][date]["ticket_list"][choice]["price"],data["screen_list"][date]["ticket_list"][choice]["static_limit"]["num"]
         elif mtype == "GET_ID_INFO":
             if not data:
-                self.error_handle("用户信息为空，请登录或先上传身份信息后重试")
+                self.error_handle("用户信息为空，请登录或先上传身份信息并认证后重试")
             if self.user_data["auth_type"] == 1:
-                print("\n此演出为一单一证，只需选择1个购票人，如 1")
+                print("\n按照监管部门要求，此项目需要实名购票，一个订单需要填写一个证件，支持身份证(包括临时身份证)、护照、港澳居民来往内地通行证、台湾居民来往大陆通行证等证件类型，入场时需要本人携带填写证件；\n本展览只可选择1个实名信息，请输入对应数字，如 '1'")
                 if len(data["list"]) <= 0:
                     self.error_handle("你的账号里一个购票人信息都没填写哦，请前往哔哩哔哩客户端-会员购-个人中心-购票人信息提前填写购票人信息")
                 for i in range(len(data["list"])):
@@ -475,7 +501,7 @@ class Api:
             if self.user_data["auth_type"] == 2:
                 if len(data["list"]) <= 0:
                     self.error_handle("你的账号里一个购票人信息都没填写哦，请前往哔哩哔哩客户端-会员购-个人中心-购票人信息提前填写购票人信息")
-                print("\n此演出为一人一证，请选择购票人, 全部购票请输入0，其他请输入购票人序号，多个购票请用空格分隔，如 1 2")
+                print("\n按照监管部门要求，此项目需要实名购票，一张票需要填写一个证件，支持身份证(包括临时身份证)、护照、港澳居民来往内地通行证、台湾居民来往大陆通行证等证件类型，入场时需要本人携带填写证件；\n全部购票请输入0，其他请输入购票人序号，多个购票请用空格分隔，如 1 2")
                 for i in range(len(data["list"])):
                     print(str(i+1) + ":" , "姓名: " + data["list"][i]["name"], "手机号:" , data["list"][i]["tel"], "身份证:", data["list"][i]["personal_id"])
                 p = input("购票人序号 >>> ").strip()
@@ -511,7 +537,7 @@ class Api:
             return name, tel
 
         elif mtype == "GET_T_COUNT":
-            print("\n请输入购买数量")
+            print("\n请输入购买数量 (最多",self.userCountLimit,"张票)")
             n = input(">>> ").strip()
             if not re.match(r"^\d{1,2}$",n):
                 self.error_handle("请输入正确的数量")
