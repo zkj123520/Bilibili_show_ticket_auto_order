@@ -10,6 +10,7 @@ import json
 import sys
 import http.cookies
 import qrcode
+import bili_ticket_gt_python
 from time import sleep
 from urllib import request
 from urllib.request import Request as Reqtype
@@ -55,6 +56,8 @@ class Api:
         self.appName = "BilibiliShow_AutoOrder"
         self.selectedTicketInfo = "未选择"
         self.userCountLimit = ""
+        self.slide = bili_ticket_gt_python.SlidePy()
+        self.click = bili_ticket_gt_python.ClickPy()
         # ALL_USER_DATA_LIST = [""]
 
     def load_cookie(self):
@@ -124,6 +127,7 @@ class Api:
         # 获取订单信息
         url = "https://show.bilibili.com/api/ticket/project/getV2?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"] + "&requestSource=pc-new"
         data = self._http(url,True)
+        print(url)
         if not data["data"]:
             print(data)
             return 1
@@ -246,20 +250,37 @@ class Api:
                 _url = "https://api.bilibili.com/x/gaia-vgate/v1/register"
                 _payload = urlencode(data["data"]["ga_data"]["riskParams"])
                 _data = self._http(_url,True,_payload)
+                
+                # using sample code & binary NodeJS components from https://github.com/Amorter/biliTicker_gt
                 gt = _data["data"]["geetest"]["gt"]
                 challenge = _data["data"]["geetest"]["challenge"]
                 token = _data["data"]["token"]
-                print("请从“滑块验证”打开的浏览器中验证后获取以下凭据值（如未开启请手动开启，有提示框请按确定）：")
-                with open("url","w") as f:
-                    f.write("file://"+ os.path.abspath('.') + "/geetest-validator/index.html?gt=" + gt + "&challenge=" + challenge)
-                validate = input("validate: ")
-                # seccode = input("seccode:")
-                seccode = validate + "|jordan"
+                validate = ""
+                (c, s) = self.slide.get_c_s(gt, challenge)
+                _type = self.slide.get_type(gt, challenge)
+                if _type != "slide":
+                    (c, s, args) = self.click.get_new_c_s_args(gt, challenge)
+                    before_calculate_key = time.time()
+                    key = self.click.calculate_key(args)
+                    w = self.click.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
+                    w_use_time = time.time() - before_calculate_key
+                    if w_use_time < 2:
+                        time.sleep(2 - w_use_time)
+                    (msg, validate) = self.click.verify(gt, challenge, w)
+                    # print(msg)
+                else:
+                    (c, s, args) = self.slide.get_new_c_s_args(gt, challenge)
+                    challenge = args[0]
+                    key = self.slide.calculate_key(args)
+                    w = self.slide.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
+                    (msg, validate) = self.slide.verify(gt, challenge, w)
+                    # print(msg)
+                
                 _url = "https://api.bilibili.com/x/gaia-vgate/v1/validate"
                 _payload = {
                     "challenge": challenge,
                     "token": token,
-                    "seccode": seccode,
+                    "seccode": validate+'|jordan',
                     "csrf": self.getCSRF(),
                     "validate": validate
                 }
@@ -272,6 +293,8 @@ class Api:
                     return 0
                 elif _data["code"]==100001:
                     self.error_handle("验证码校验失败。")
+                elif _data["code"]==100003:
+                    self.error_handle("验证码过去")
                 else:
                     self.error_handle("极验GeeTest验证失败。")
             elif data["errno"] == 100041:
