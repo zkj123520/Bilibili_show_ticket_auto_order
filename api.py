@@ -82,10 +82,16 @@ class Api:
                 t.close()
                 self.error_handle("")
             if self.user_data["specificID"]:
-                self.user_data["username"],self.headers["Cookie"] = j[self.user_data["specificID"]][0],j[self.user_data["specificID"]][1]
+                self.headers["Cookie"] = self.cookie_dict2str(j[self.user_data["specificID"]])
             else:
                 j = j[list(j.keys())[0]]
-                self.user_data["username"],self.headers["Cookie"] = j[0],j[1]
+                self.headers["Cookie"] = self.cookie_dict2str(j)
+    
+    def cookie_dict2str(self,cookie):
+        cstr = ""
+        for key in cookie:
+            cstr += key+"=" + cookie[key] + "; "
+        return cstr
             
     def _http(self,url,j=False,data=None,raw=False):
         data = data.encode() if type(data) == type("") else data
