@@ -55,6 +55,8 @@ class Api:
         self.appName = "BilibiliShow_AutoOrder"
         self.selectedTicketInfo = "未选择"
         self.userCountLimit = ""
+        self.selectedScreen = 0
+        self.selectedTicket = 0
         # ALL_USER_DATA_LIST = [""]
 
     def load_cookie(self):
@@ -285,9 +287,21 @@ class Api:
                     self.user_data["token"] = data["data"]["token"]
         return 0
         
-
+    def checkAvaliable(self):
+        url = "https://show.bilibili.com/api/ticket/project/getV2?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"] + "&requestSource=pc-new"
+        data = self._http(url,True)
+        return data["data"]["screen_list"][self.selectedScreen]["ticket_list"][self.selectedTicket]["sale_flag"]["number"]
 
     def orderCreate(self):
+        noTicket = False
+        while True:
+            if self.checkAvaliable() == 2:
+                print("!!!检测到预售状态，开始购买!!!")
+                break
+            else:
+                if noTicket == False:
+                    print("---暂无库存---")
+                    noTicket = True
         # 创建订单
         # url = "https://show.bilibili.com/api/ticket/order/createV2?project_id=" + config["projectId"]
         url = "https://show.bilibili.com/api/ticket/order/createV2?project_id=" + self.user_data["project_id"]
@@ -459,7 +473,7 @@ class Api:
                 print("本演出/展览包含纸质票。")
             print("\n请选择场次序号并按回车继续，格式例如 1")
             for i in range(len(data["screen_list"])):
-                print(str(i+1) + ":",data["screen_list"][i]["name"])
+                print(str(i+1) + ":",data["screen_list"][i]["name"],data["screen_list"][i]["saleFlag"]["display_name"])
             date = input("场次序号 >>> ").strip()
             try:
                 date = int(date) - 1
@@ -470,7 +484,7 @@ class Api:
             print("已选择：", data["screen_list"][date]["name"])
             print("\n请输入票种并按回车继续，格式例如 1")
             for i in range(len(data["screen_list"][date]["ticket_list"])):
-                print(str(i+1) + ":",data["screen_list"][date]["ticket_list"][i]["desc"],"-",data["screen_list"][date]["ticket_list"][i]["price"]//100,"RMB")
+                print(str(i+1) + ":",data["screen_list"][date]["ticket_list"][i]["desc"],"-",data["screen_list"][date]["ticket_list"][i]["price"]//100,"RMB",data["screen_list"][date]["ticket_list"][i]["sale_flag"]["display_name"])
             choice = input("票种序号 >>> ").strip()
             try:
                 choice = int(choice) - 1
@@ -480,6 +494,8 @@ class Api:
                 self.error_handle("请输入正确数字")
             self.selectedTicketInfo = data["name"] + " " + data["screen_list"][date]["name"] + " " + data["screen_list"][date]["ticket_list"][choice]["desc"]+ " " + str(data["screen_list"][date]["ticket_list"][choice]["price"]//100)+ " " +"CNY"
             print("\n已选择：", self.selectedTicketInfo)
+            self.selectedScreen = date
+            self.selectedTicket = choice
             return data["screen_list"][date]["id"],data["screen_list"][date]["ticket_list"][choice]["id"],data["screen_list"][date]["ticket_list"][choice]["price"],data["screen_list"][date]["ticket_list"][choice]["static_limit"]["num"]
         elif mtype == "GET_ID_INFO":
             if not data:
