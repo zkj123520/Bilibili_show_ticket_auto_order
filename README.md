@@ -1,26 +1,26 @@
 # Bilibili_show_ticket_auto_order
 
-## 本项目仅供Python、Request库网络请求、Selenium操作学习使用。
+## 本项目仅供Python编程学习、urllib/requests库网络请求操作学习、Selenium操作学习使用，请勿用于商业以及危害网站正常运行及数据安全用途
 
-## 截止到 2024/4/23 仍然可用
+## 截止到 2024/6/15 仍然可用
 
 <img width="273" alt="屏幕截图 2023-08-09 182035" src="https://github.com/fengx1a0/Bilibili_show_ticket_auto_order/assets/74698099/f0b2d1ad-928b-498d-9a79-f735e3f01c00">
 
 <img width="277" alt="屏幕截图 2023-08-09 182012" src="https://github.com/fengx1a0/Bilibili_show_ticket_auto_order/assets/74698099/4363ff9a-23a7-4f31-b0ea-0919ed1279d1">
 
-> 本软件承诺不包含任何个人信息采集与远程遥测组件，开发者不会远程对程序本身、账号以及账号所有者的任何信息进行任何恶意操作
->
 > 本软件无法保证 100% 命中率和 100% 不受哔哩哔哩安全团队行为风险控制限制，一切交给天意
 >
-> 本软件可能无法及时跟进哔哩哔哩验证码机制更新，望知悉
+> 本软件可能无法及时跟进哔哩哔哩/极验Geetest验证码机制更新，望知悉
 >
-> 本项目不会使用各种条款、“保密协议”等对使用者进行额外限制，代码明文可见，遵循GPL（GNU General Public License）协议进行开源。
+> 本项目遵循GPL（GNU General Public License）协议进行开源，仅供学习使用，请在24小时之后删除
 
 # 原介绍
 
 本项目核心借鉴自https://github.com/Hobr 佬
 
-Bilibili会员购抢票助手, 通过B站接口抢购目标漫展/演出
+感谢原开发者 [fengx1ao](https://github.com/fengx1a0/Bilibili_show_ticket_auto_order)
+
+geetest-validator 部分魔改自 https://kuresaru.github.io/geetest-validator/
 
 本脚本仅供学习交流使用, 不得用于商业用途, 如有侵权请联系删除
 
@@ -28,7 +28,7 @@ Bilibili会员购抢票助手, 通过B站接口抢购目标漫展/演出
 
 <img src="images/a.png" alt="image-20230708221143842" style="zoom:50%;" />
 
-## 致谢
+## 致谢 from fengx1ao
 
 以下排名不分先后，我也不想搞的攀比起来，因为很多都是学生，原则上我是不收赞助的，大家太热情了：
 
@@ -74,7 +74,7 @@ czpwpq
 
 ## 功能截图
 
-除了登录纯api请求
+除了登录纯api请求（正在测试新版纯API式登录）
 
 目前已经支持漫展演出等的 无证 / 单证 / 一人一证 的购买
 
@@ -121,18 +121,10 @@ config.txt为配置文件，不指定值为None
 - sleep设置每次抢票请求间隔时间
 - token设置pushplus的个人token
 
-## API文档
-
-pass
-
 ## 问题报告
 
 提issue即可
 
 ## 更新
 
-加入token验证，手动拉滑块
-
-加入微信公众号推送消息功能
-
-加入对实体票邮寄地址的支持（需要提前添加）
+库存检测 纸质票购买 极验验证码快捷解决方案
