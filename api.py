@@ -277,7 +277,17 @@ class Api:
                 else:
                     self.error_handle("极验GeeTest验证失败。")
             elif data["errno"] == 100041:
-                self.error_handle("指定展览/演出未开票或账号异常")
+                # print("指定展览/演出未开票或账号异常")
+                url_ = "https://show.bilibili.com/api/ticket/project/getV2?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"] + "&requestSource=pc-new"
+                data_ = self._http(url_,True)
+                time_s = data_["data"]["screen_list"][self.selectedScreen]["ticket_list"][self.selectedTicket]['saleStart']
+                if int(time.time())<time_s:
+                    print("未开票，正在等待")
+                    while True:
+                        if int(time.time()) >= time_s:
+                            break
+                else:
+                    self.error_handle("账号状态异常，请检查您的哔哩哔哩账号")
             else:
                 if not data["data"]:
                     timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ": "
