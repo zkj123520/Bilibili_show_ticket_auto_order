@@ -425,7 +425,7 @@ class Api:
                     trayNotifyMessage += payload["buyer"]
                 trayNotifyMessage += "\n" + self.selectedTicketInfo
                 self.tray_notify("存在未付款订单", trayNotifyMessage, "./ico/success.ico", timeout=20)
-                self.error_handle(timestr,"指定的购买人存在已付款订单")
+                self.error_handle(timestr+"指定的购买人存在已付款订单")
             else:
                 print(timestr,"错误信息: ["+str(data["errno"])+"]", data["msg"])
                 # print(data)
