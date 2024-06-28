@@ -24,16 +24,18 @@ headers = {
     "Connection": "keep-alive"
 }
 
-qr = qrcode.QRCode()
 qr_data = requests.get(qr_baseurl,headers=headers).json()
 
 qr_url = qr_data["data"]["url"]
 qrcode_key = qr_data["data"]["qrcode_key"]
 
+qr = qrcode.QRCode()
 qr.add_data(qr_url)
 qr.make()
 qr.print_ascii()
-print("请在180秒内扫描登录")
+qr.make_image().save('bili_login.png')
+
+print("请在180秒内使用哔哩哔哩移动端扫描终端内二维码\n或程序目录内图片 bili_login.png 进行登录")
 
 poll_url = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
 poll_params = {
@@ -55,6 +57,7 @@ for i in range(1,180):
         if(qr_ckjson["data"]["code"]==86038):
             print("二维码已失效。")
             os.system("pause")
+            os.remove('bili_login.png')
             sys.exit(0)
     else:
         uid = qr_check.cookies["DedeUserID"]
@@ -72,4 +75,6 @@ with open('user_data.json','w') as f:
     json.dump(cookies,f)
 
 print("获取完毕.")
+os.remove('bili_login.png')
 os.system("pause")
+

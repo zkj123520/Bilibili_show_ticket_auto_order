@@ -479,12 +479,17 @@ class Api:
         data = self._http(url,True)
         if(data["errno"] == 0):
             _qrcode = data["data"]["payParam"]["code_url"]
+            _ts = int(time.mktime(time.localtime()))
             print("请使用微信/QQ/支付宝扫描二维码完成支付")
             print("请使用微信/QQ/支付宝扫描二维码完成支付")
-            print("请使用微信/QQ/支付宝扫描二维码完成支付")
+            print("请使用微信/QQ/支付宝扫描二维码完成支付\n")
+            print(f"若二维码显示异常请扫描程序目录下{_ts}.png图片文件的二维码")
+            print(f"若二维码显示异常请扫描程序目录下{_ts}.png图片文件的二维码")
+            print(f"若二维码显示异常请扫描程序目录下{_ts}.png图片文件的二维码")
             qr_gen = qrcode.QRCode()
             qr_gen.add_data(_qrcode)
             qr_gen.print_ascii()
+            qr_gen.make_image().save(f'{_ts}.png')
             # print(qrcode)
             return 1
         else:

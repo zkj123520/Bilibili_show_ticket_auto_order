@@ -1,6 +1,6 @@
 pywin32  
 selenium
 plyer
-qrcode
+qrcode[pil]
 bili-ticket-gt-python
 requests
