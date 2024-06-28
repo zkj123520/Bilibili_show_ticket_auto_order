@@ -10,6 +10,7 @@ import json
 import sys
 import http.cookies
 import qrcode
+import bili_ticket_gt_python
 from time import sleep
 from urllib import request
 from urllib.request import Request as Reqtype
@@ -85,6 +86,7 @@ class Api:
             else:
                 j = j[list(j.keys())[0]]
                 self.user_data["username"],self.headers["Cookie"] = j[0],j[1]
+
             
     def _http(self,url,j=False,data=None,raw=False):
         data = data.encode() if type(data) == type("") else data
@@ -251,17 +253,40 @@ class Api:
                 gt = _data["data"]["geetest"]["gt"]
                 challenge = _data["data"]["geetest"]["challenge"]
                 token = _data["data"]["token"]
-                print("请从“滑块验证”打开的浏览器中验证后获取以下凭据值（如未开启请手动开启，有提示框请按确定）：")
-                with open("url","w") as f:
-                    f.write("file://"+ os.path.abspath('.') + "/geetest-validator/index.html?gt=" + gt + "&challenge=" + challenge)
-                validate = input("validate: ")
-                # seccode = input("seccode:")
-                seccode = validate + "|jordan"
+
+                # using sample code & binary NodeJS components from https://github.com/Amorter/biliTicker_gt
+
+                click = bili_ticket_gt_python.ClickPy()
+                slide = bili_ticket_gt_python.SlidePy()
+                
+                validate = ""
+
+                (_, _) = slide.get_c_s(gt, challenge)
+                _type = slide.get_type(gt, challenge)
+                if _type != "slide":
+                    (c, s, args) = click.get_new_c_s_args(gt, challenge)
+                    before_calculate_key = time.time()
+                    key = click.calculate_key(args)
+                    w = click.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
+                    w_use_time = time.time() - before_calculate_key
+                    print("w生成时间：", w_use_time)
+                    if w_use_time < 2:
+                        time.sleep(2 - w_use_time)
+                    (msg, validate) = click.verify(gt, challenge, w)
+                    print(validate)
+                else:
+                    (c, s, args) = slide.get_new_c_s_args(gt, challenge)
+                    challenge = args[0]
+                    key = slide.calculate_key(args)
+                    w = slide.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
+                    (msg, validate) = slide.verify(gt, challenge, w)
+                    print(validate)
+                
                 _url = "https://api.bilibili.com/x/gaia-vgate/v1/validate"
                 _payload = {
                     "challenge": challenge,
                     "token": token,
-                    "seccode": seccode,
+                    "seccode": validate+'|jordan',
                     "csrf": self.getCSRF(),
                     "validate": validate
                 }
@@ -274,6 +299,8 @@ class Api:
                     return 0
                 elif _data["code"]==100001:
                     self.error_handle("验证码校验失败。")
+                elif _data["code"]==100003:
+                    self.error_handle("验证码过期")
                 else:
                     self.error_handle("极验GeeTest验证失败。")
             elif data["errno"] == 100041:

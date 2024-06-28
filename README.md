@@ -20,7 +20,7 @@
 
 感谢原开发者 [fengx1ao](https://github.com/fengx1a0/Bilibili_show_ticket_auto_order)
 
-geetest-validator 部分魔改自 https://kuresaru.github.io/geetest-validator/
+极验验证码自动化解决方案提供：[BiliTicker-gt-python](https://github.com/Amorter/biliTicker_gt)
 
 本脚本仅供学习交流使用, 不得用于商业用途, 如有侵权请联系删除
 
@@ -74,7 +74,7 @@ czpwpq
 
 ## 功能截图
 
-除了登录纯api请求（正在测试新版纯API式登录）
+纯api请求
 
 目前已经支持漫展演出等的 无证 / 单证 / 一人一证 的购买
 
@@ -105,7 +105,7 @@ pip install -r requirements.txt
 ```shell
 python login.py     //登录.exe
 python main.py      //抢票
-python geetest.py   //极验滑块验证
+python geetest.py   //极验滑块验证（暂时废弃）
 ```
 
 ### 新功能：微信公众号推送结果
@@ -127,4 +127,8 @@ config.txt为配置文件，不指定值为None
 
 ## 更新
 
-库存检测 纸质票购买 极验验证码快捷解决方案
+脱离浏览器的新登录模块
+
+库存检测
+
+极验验证码自动化解决方案集成

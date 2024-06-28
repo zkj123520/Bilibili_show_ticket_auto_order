@@ -2,3 +2,5 @@ pywin32
 selenium
 plyer
 qrcode
+bili-ticket-gt-python
+requests
