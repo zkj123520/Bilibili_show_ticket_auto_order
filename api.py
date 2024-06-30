@@ -309,16 +309,18 @@ class Api:
                 data_ = self._http(url_,True)
                 time_s = data_["data"]["screen_list"][self.selectedScreen]["ticket_list"][self.selectedTicket]['saleStart']
                 if int(time.time())<time_s:
-                    print("未开票，正在等待")
-                    while True:
-                        if int(time.time()) >= time_s:
-                            break
+                    print("未开票，正在等待 开票时间:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_s)))
+                    for i in range(time_s - int(time.time())-1, 0, -1):
+                        print("\r剩余时间：{}s".format(i+1), end="", flush=True)
+                        time.sleep(1)
                 else:
                     self.error_handle("账号状态异常，请检查您的哔哩哔哩账号")
+            elif data['errno'] == 100098:
+                self.error_handle('当前票种/展览/演出设定状态为为哔哩哔哩大会员限定购买，如已是大会员请确认大会员权能是否冻结')
             else:
                 if not data["data"]:
                     timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ": "
-                    print(timestr,"失败信息: ",data["msg"])
+                    print(timestr,"失败信息: ",data["code"],data["msg"])
                     return 1
                 if data["data"]["token"]:
                     self.user_data["token"] = data["data"]["token"]
@@ -327,18 +329,21 @@ class Api:
     def checkAvaliable(self):
         url = "https://show.bilibili.com/api/ticket/project/getV2?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"] + "&requestSource=pc-new"
         data = self._http(url,True)
+        if not data:
+            return 0
         return data["data"]["screen_list"][self.selectedScreen]["ticket_list"][self.selectedTicket]["sale_flag"]["number"]
 
     def orderCreate(self):
-        noTicket = False
-        while True:
-            if self.checkAvaliable() == 2:
-                print("!!!检测到预售状态，开始购买!!!")
-                break
-            else:
-                if noTicket == False:
-                    print("---暂无库存---")
-                    noTicket = True
+        # noTicket = False
+        # while True:
+        #     if self.checkAvaliable() == 2:
+        #         print("!!!检测到预售状态，开始购买!!!")
+        #         break
+        #     else:
+        #         if noTicket == False:
+        #             print("---暂无库存---")
+        #             noTicket = True
+        
         # 创建订单
         # url = "https://show.bilibili.com/api/ticket/order/createV2?project_id=" + config["projectId"]
         url = "https://show.bilibili.com/api/ticket/order/createV2?project_id=" + self.user_data["project_id"]

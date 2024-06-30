@@ -18,4 +18,13 @@ if __name__ == '__main__':
 	if not os.path.exists("url"):
 		with open("url","w") as f:
 			f.write("")
+	print('!!! 请不要在社交平台/大型群组宣传本软件，感谢合作 !!!')
+	print('!!! 请不要在社交平台/大型群组宣传本软件，感谢合作 !!!')
+	print('!!! 请不要在社交平台/大型群组宣传本软件，感谢合作 !!!')
+	print('!!! 本程序完全免费，如果你是买来的证明你被骗了 !!!')
+	print('!!! 本程序完全免费，如果你是买来的证明你被骗了 !!!')
+	print('!!! 本程序完全免费，如果你是买来的证明你被骗了 !!!')
+	print('!!! 仅供学习使用，请在下载后24小时之内删除 !!!')
+	print('!!! 仅供学习使用，请在下载后24小时之内删除 !!!')
+	print('!!! 仅供学习使用，请在下载后24小时之内删除 !!!\n')
 	Api(proxies=proxies,specificID=specificID,sleepTime=sleep,token=token).start()
