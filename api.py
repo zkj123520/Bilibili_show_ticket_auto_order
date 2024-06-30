@@ -343,7 +343,7 @@ class Api:
         #         if noTicket == False:
         #             print("---暂无库存---")
         #             noTicket = True
-        
+
         # 创建订单
         # url = "https://show.bilibili.com/api/ticket/order/createV2?project_id=" + config["projectId"]
         url = "https://show.bilibili.com/api/ticket/order/createV2?project_id=" + self.user_data["project_id"]
@@ -363,7 +363,8 @@ class Api:
                     "screen_id": self.user_data["screen_id"],
                     "sku_id": self.user_data["sku_id"],
                     "timestamp": int(round(time.time() * 1000)),
-                    "token": self.user_data["token"]
+                    "token": self.user_data["token"],
+                    "again": 1,
                 }
             else:
                 payload = {
@@ -376,7 +377,8 @@ class Api:
                     "screen_id": self.user_data["screen_id"],
                     "sku_id": self.user_data["sku_id"],
                     "timestamp": int(round(time.time() * 1000)),
-                    "token": self.user_data["token"]
+                    "token": self.user_data["token"],
+                    "again": 1
                 }
         else:
             if self.user_data["auth_type"] == 0:
@@ -392,7 +394,8 @@ class Api:
                     "sku_id": self.user_data["sku_id"],
                     "timestamp": int(round(time.time() * 1000)),
                     "token": self.user_data["token"],
-                    "deliver_info": json.dumps(self.user_data["deliver_info"],ensure_ascii=0)
+                    "deliver_info": json.dumps(self.user_data["deliver_info"],ensure_ascii=0),
+                    "again": 1
                 }
             else:
                 payload = {
@@ -406,7 +409,8 @@ class Api:
                     "sku_id": self.user_data["sku_id"],
                     "timestamp": int(round(time.time() * 1000)),
                     "token": self.user_data["token"],
-                    "deliver_info": json.dumps(self.user_data["deliver_info"],ensure_ascii=0)
+                    "deliver_info": json.dumps(self.user_data["deliver_info"],ensure_ascii=0),
+                    "again": 1
                 }
         timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
         data = self._http(url,True,urlencode(payload).replace("%27true%27","true").replace("%27","%22"))
@@ -445,19 +449,19 @@ class Api:
                 print(timestr,"错误信息：当前暂无余票，请耐心等候。")
             elif "100001" in str(data["errno"]):
                 print(timestr,"错误信息：获取频率过快或无票。")
-            elif "100079" in str(data["errno"]):
-                trayNotifyMessage = ""
-                if "buyer_info" in payload:
-                    for i in range(0, len(payload["buyer_info"])):
-                        if self.user_data["auth_type"] == 0:
-                            trayNotifyMessage += ['buyer_info'][i][0] + " "
-                        else:
-                            trayNotifyMessage += payload['buyer_info'][i]["name"] + " "
-                elif "buyer" in payload:
-                    trayNotifyMessage += payload["buyer"]
-                trayNotifyMessage += "\n" + self.selectedTicketInfo
-                self.tray_notify("存在未付款订单", trayNotifyMessage, "./ico/success.ico", timeout=20)
-                self.error_handle(timestr+"指定的购买人存在已付款订单")
+            # elif "100079" in str(data["errno"]):
+            #     trayNotifyMessage = ""
+            #     if "buyer_info" in payload:
+            #         for i in range(0, len(payload["buyer_info"])):
+            #             if self.user_data["auth_type"] == 0:
+            #                 trayNotifyMessage += ['buyer_info'][i][0] + " "
+            #             else:
+            #                 trayNotifyMessage += payload['buyer_info'][i]["name"] + " "
+            #     elif "buyer" in payload:
+            #         trayNotifyMessage += payload["buyer"]
+            #     trayNotifyMessage += "\n" + self.selectedTicketInfo
+            #     self.tray_notify("存在未付款订单", trayNotifyMessage, "./ico/success.ico", timeout=20)
+            #     self.error_handle(timestr+"指定的购买人存在已付款订单")
             else:
                 print(timestr,"错误信息: ["+str(data["errno"])+"]", data["msg"])
                 # print(data)
