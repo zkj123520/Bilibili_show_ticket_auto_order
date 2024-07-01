@@ -203,7 +203,43 @@ class Api:
         n = int(self.menu("GET_ADDRESS_LIST",data["data"]))-1
         return data["data"]["addr_list"][n]
         
+    def geetestPass(self, gt_payload):
+        gt_url = "https://api.bilibili.com/x/gaia-vgate/v1/register"
+        gt_data = self._http(gt_url,True,gt_payload)
+        gt = gt_data["data"]["geetest"]["gt"]
+        challenge = gt_data["data"]["geetest"]["challenge"]
+        token = gt_data["data"]["token"]
+        # using sample code & binary NodeJS components from https://github.com/Amorter/biliTicker_gt
 
+        click = bili_ticket_gt_python.ClickPy()
+        slide = bili_ticket_gt_python.SlidePy()
+
+        (_, _) = slide.get_c_s(gt, challenge)
+        _type = slide.get_type(gt, challenge)
+        try:
+            if _type != "slide":
+                (c, s, args) = click.get_new_c_s_args(gt, challenge)
+                before_calculate_key = time.time()
+                key = click.calculate_key(args)
+                w = click.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
+                w_use_time = time.time() - before_calculate_key
+                print("w生成时间：", w_use_time)
+                if w_use_time < 2:
+                    time.sleep(2 - w_use_time)
+                (msg, validate) = click.verify(gt, challenge, w)
+                print(msg, validate)
+            else:
+                (c, s, args) = slide.get_new_c_s_args(gt, challenge)
+                challenge = args[0]
+                key = slide.calculate_key(args)
+                w = slide.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
+                (msg, validate) = slide.verify(gt, challenge, w)
+                print(msg, validate)
+        except:
+            print("Geetest自动化检测失败，正在重试")
+            return self.geetestPass(gt_payload)
+        return validate, challenge, token
+        
     def tokenGet(self):
         # 获取token
         url = "https://show.bilibili.com/api/ticket/order/prepare?project_id=" + self.user_data["project_id"]
@@ -247,41 +283,10 @@ class Api:
 
         if data:
             if data["errno"] == -401:
-                _url = "https://api.bilibili.com/x/gaia-vgate/v1/register"
-                _payload = urlencode(data["data"]["ga_data"]["riskParams"])
-                _data = self._http(_url,True,_payload)
-                gt = _data["data"]["geetest"]["gt"]
-                challenge = _data["data"]["geetest"]["challenge"]
-                token = _data["data"]["token"]
+                print("=== 发现极验验证码 ===")
+                gt_payload = urlencode(data["data"]["ga_data"]["riskParams"])
+                (validate,challenge,token) = self.geetestPass(gt_payload)
 
-                # using sample code & binary NodeJS components from https://github.com/Amorter/biliTicker_gt
-
-                click = bili_ticket_gt_python.ClickPy()
-                slide = bili_ticket_gt_python.SlidePy()
-                
-                validate = ""
-
-                (_, _) = slide.get_c_s(gt, challenge)
-                _type = slide.get_type(gt, challenge)
-                if _type != "slide":
-                    (c, s, args) = click.get_new_c_s_args(gt, challenge)
-                    before_calculate_key = time.time()
-                    key = click.calculate_key(args)
-                    w = click.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
-                    w_use_time = time.time() - before_calculate_key
-                    print("w生成时间：", w_use_time)
-                    if w_use_time < 2:
-                        time.sleep(2 - w_use_time)
-                    (msg, validate) = click.verify(gt, challenge, w)
-                    print(validate)
-                else:
-                    (c, s, args) = slide.get_new_c_s_args(gt, challenge)
-                    challenge = args[0]
-                    key = slide.calculate_key(args)
-                    w = slide.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
-                    (msg, validate) = slide.verify(gt, challenge, w)
-                    print(validate)
-                
                 _url = "https://api.bilibili.com/x/gaia-vgate/v1/validate"
                 _payload = {
                     "challenge": challenge,
@@ -310,13 +315,15 @@ class Api:
                 time_s = data_["data"]["screen_list"][self.selectedScreen]["ticket_list"][self.selectedTicket]['saleStart']
                 if int(time.time())<time_s:
                     print("未开票，正在等待 开票时间:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_s)))
-                    for i in range(time_s - int(time.time())-1, 0, -1):
+                    for i in range(time_s - int(time.time()), 0, -1):
                         print("\r剩余时间：{}s".format(i+1), end="", flush=True)
                         time.sleep(1)
                 else:
                     self.error_handle("账号状态异常，请检查您的哔哩哔哩账号")
             elif data['errno'] == 100098:
                 self.error_handle('当前票种/展览/演出设定状态为为哔哩哔哩大会员限定购买，如已是大会员请确认大会员权能是否冻结')
+            elif data['errno'] == 100039:
+                self.error_handle('活动收摊了，下次要快点哦')
             else:
                 if not data["data"]:
                     timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ": "
@@ -326,13 +333,6 @@ class Api:
                     self.user_data["token"] = data["data"]["token"]
         return 0
         
-    def checkAvaliable(self):
-        url = "https://show.bilibili.com/api/ticket/project/getV2?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"] + "&requestSource=pc-new"
-        data = self._http(url,True)
-        if not data:
-            return 0
-        return data["data"]["screen_list"][self.selectedScreen]["ticket_list"][self.selectedTicket]["sale_flag"]["number"]
-
     def orderCreate(self):
         # noTicket = False
         # while True:
@@ -492,13 +492,13 @@ class Api:
             print("请使用微信/QQ/支付宝扫描二维码完成支付")
             print("请使用微信/QQ/支付宝扫描二维码完成支付")
             print("请使用微信/QQ/支付宝扫描二维码完成支付\n")
-            print(f"若二维码显示异常请扫描程序目录下{_ts}.png图片文件的二维码")
-            print(f"若二维码显示异常请扫描程序目录下{_ts}.png图片文件的二维码")
-            print(f"若二维码显示异常请扫描程序目录下{_ts}.png图片文件的二维码")
+            print(f"若二维码显示异常请扫描程序目录下 ticket_{str(_orderId)}.png 图片文件的二维码")
+            print(f"若二维码显示异常请扫描程序目录下 ticket_{str(_orderId)}.png 图片文件的二维码")
+            print(f"若二维码显示异常请扫描程序目录下 ticket_{str(_orderId)}.png 图片文件的二维码")
             qr_gen = qrcode.QRCode()
             qr_gen.add_data(_qrcode)
             qr_gen.print_ascii()
-            qr_gen.make_image().save(f'{_ts}.png')
+            qr_gen.make_image().save(f'{str(_orderId)}.png')
             # print(qrcode)
             return 1
         else:
