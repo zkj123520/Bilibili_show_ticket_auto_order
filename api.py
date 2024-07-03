@@ -17,6 +17,7 @@ from urllib.request import Request as Reqtype
 from urllib.parse import urlencode
 from geetest import dealCode
 from plyer import notification as trayNotify
+import ntplib
 
 
 
@@ -58,6 +59,7 @@ class Api:
         self.userCountLimit = ""
         self.selectedScreen = 0
         self.selectedTicket = 0
+        self.ntp_client = ntplib.NTPClient()
         # ALL_USER_DATA_LIST = [""]
 
     def load_cookie(self):
@@ -203,43 +205,42 @@ class Api:
         n = int(self.menu("GET_ADDRESS_LIST",data["data"]))-1
         return data["data"]["addr_list"][n]
         
-    def geetestPass(self, gt_payload):
-        gt_url = "https://api.bilibili.com/x/gaia-vgate/v1/register"
-        gt_data = self._http(gt_url,True,gt_payload)
-        gt = gt_data["data"]["geetest"]["gt"]
-        challenge = gt_data["data"]["geetest"]["challenge"]
-        token = gt_data["data"]["token"]
+    def geetestPass(self, gt, challenge):
+        try:
         # using sample code & binary NodeJS components from https://github.com/Amorter/biliTicker_gt
 
-        click = bili_ticket_gt_python.ClickPy()
-        slide = bili_ticket_gt_python.SlidePy()
+            click = bili_ticket_gt_python.ClickPy()
+            slide = bili_ticket_gt_python.SlidePy()
 
-        (_, _) = slide.get_c_s(gt, challenge)
-        _type = slide.get_type(gt, challenge)
-        try:
-            if _type != "slide":
+            (c, s) = slide.get_c_s(gt, challenge)
+            _type = slide.get_type(gt, challenge)
+            print(_type)
+            if _type == "click":
                 (c, s, args) = click.get_new_c_s_args(gt, challenge)
                 before_calculate_key = time.time()
                 key = click.calculate_key(args)
                 w = click.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
                 w_use_time = time.time() - before_calculate_key
-                print("w生成时间：", w_use_time)
                 if w_use_time < 2:
                     time.sleep(2 - w_use_time)
                 (msg, validate) = click.verify(gt, challenge, w)
-                print(msg, validate)
             else:
                 (c, s, args) = slide.get_new_c_s_args(gt, challenge)
                 challenge = args[0]
                 key = slide.calculate_key(args)
                 w = slide.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
                 (msg, validate) = slide.verify(gt, challenge, w)
-                print(msg, validate)
-        except:
-            print("Geetest自动化检测失败，正在重试")
-            return self.geetestPass(gt_payload)
-        return validate, challenge, token
-        
+            print(_type, validate)
+        except Exception as e:
+            print(f"Geetest自动化检测出错。错误代码：{e}")
+            sleep(2)
+            return self.geetestPass(gt, challenge)
+        return validate
+    
+    def phoneCheckPass(self, tel, telLen):
+        phone = input(f'请输入哔哩哔哩账号绑定的{telLen}位完整手机号码 {tel}：')
+        return phone
+
     def tokenGet(self):
         # 获取token
         url = "https://show.bilibili.com/api/ticket/order/prepare?project_id=" + self.user_data["project_id"]
@@ -283,40 +284,53 @@ class Api:
 
         if data:
             if data["errno"] == -401:
-                print("=== 发现极验验证码 ===")
-                gt_payload = urlencode(data["data"]["ga_data"]["riskParams"])
-                (validate,challenge,token) = self.geetestPass(gt_payload)
-
+                print("=== 发现验证 ===")
+                __url = "https://api.bilibili.com/x/gaia-vgate/v1/register"
+                __payload = urlencode(data["data"]["ga_data"]["riskParams"])
+                __data = self._http(__url,True,__payload)
+                if __data.get('data').get('type')=='geetest':
+                    gt = __data["data"]["geetest"]["gt"]
+                    challenge = __data["data"]["geetest"]["challenge"]
+                    token = __data["data"]["token"]
+                    validate = self.geetestPass(gt, challenge)
+                    _payload = {
+                        "challenge": challenge,
+                        "token": token,
+                        "seccode": validate+'|jordan',
+                        "csrf": self.getCSRF(),
+                        "validate": validate
+                    }
+                elif __data.get('data').get('type')=='phone':
+                    _payload = {
+                        "code": self.phoneCheckPass(__data['data']['phone']['tel'], __data['data']['phone']['telLen']),
+                        "csrf": self.getCSRF(),
+                        "token": token,
+                    }
+                else:
+                    self.error_handle("验证码类别无法辨别，请重启程序后重试")
                 _url = "https://api.bilibili.com/x/gaia-vgate/v1/validate"
-                _payload = {
-                    "challenge": challenge,
-                    "token": token,
-                    "seccode": validate+'|jordan',
-                    "csrf": self.getCSRF(),
-                    "validate": validate
-                }
                 _data = self._http(_url,True,urlencode(_payload))
-                print(_data)
                 if(_data["code"]==-111):
                     self.error_handle("csrf校验失败")
                 if _data["data"]["is_valid"] == 1:
-                    print("极验GeeTest认证成功。")
+                    print("认证成功。")
                     return 0
                 elif _data["code"]==100001:
                     self.error_handle("验证码校验失败。")
                 elif _data["code"]==100003:
                     self.error_handle("验证码过期")
                 else:
-                    self.error_handle("极验GeeTest验证失败。")
+                    self.error_handle("验证失败。")
             elif data["errno"] == 100041:
                 # print("指定展览/演出未开票或账号异常")
                 url_ = "https://show.bilibili.com/api/ticket/project/getV2?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"] + "&requestSource=pc-new"
                 data_ = self._http(url_,True)
                 time_s = data_["data"]["screen_list"][self.selectedScreen]["ticket_list"][self.selectedTicket]['saleStart']
                 if int(time.time())<time_s:
-                    print("未开票，正在等待 开票时间:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_s)))
-                    for i in range(time_s - int(time.time()), 0, -1):
-                        print("\r剩余时间：{}s".format(i+1), end="", flush=True)
+                    time_x = self.ntp_client.request('ntp.aliyun.com').tx_time
+                    print("未开票，正在等待 开票时间:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_s)), "请求发起时间(阿里云授时):", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_x)))
+                    for i in range(time_s - int(time_x), 0, -1):
+                        print("\r剩余时间：{}s".format(i), end="", flush=True)
                         time.sleep(1)
                 else:
                     self.error_handle("账号状态异常，请检查您的哔哩哔哩账号")
@@ -326,7 +340,7 @@ class Api:
                 self.error_handle('活动收摊了，下次要快点哦')
             else:
                 if not data["data"]:
-                    timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ": "
+                    timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(self.ntp_client.request('ntp.aliyun.com').tx_time)) + ":"
                     print(timestr,"失败信息: ",data["code"],data["msg"])
                     return 1
                 if data["data"]["token"]:
@@ -412,13 +426,14 @@ class Api:
                     "deliver_info": json.dumps(self.user_data["deliver_info"],ensure_ascii=0),
                     "again": 1
                 }
-        timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+        timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ' (LT)'
         data = self._http(url,True,urlencode(payload).replace("%27true%27","true").replace("%27","%22"))
         if data:
             if data["errno"] == 0:
                 if self.checkOrder(data["data"]["token"],data["data"]["orderId"]):
-                    print("已成功抢到票, 请在10分钟内完成支付.实际成交时间:"+timestr)
-                    trayNotifyMessage = timestr+"已成功抢到票, 请在10分钟内完成支付" + "\n" + "购票人："
+                    _ts = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(self.ntp_client.request('ntp.aliyun.com').tx_time))
+                    print("已成功抢到票, 请在10分钟内完成支付。通知发送时间 (NTP):",_ts)
+                    trayNotifyMessage = _ts+" (NTP) 已成功抢到票, 请在10分钟内完成支付" + "\n" + "购票人："
                     # + thisBuyerInfo + self.selectedTicketInfo + "\n"
                     # Add buyer info
                     if "buyer_info" in payload:
@@ -468,8 +483,8 @@ class Api:
         return 0
 
     def checkOrder(self,_token,_orderId):
-        timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))+":"
-        print(timestr+"下单成功！正在检查票务状态...请稍等")
+        timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(self.ntp_client.request('ntp.aliyun.com').tx_time))+":"
+        print(timestr, "下单成功！正在检查票务状态...请稍等")
         self.tray_notify("下单成功", "正在检查票务状态...请稍等", "./ico/info.ico", timeout=5)
         # sleep(5)
         # url = "https://show.bilibili.com/api/ticket/order/list?page=0&page_size=10"
@@ -488,18 +503,19 @@ class Api:
         data = self._http(url,True)
         if(data["errno"] == 0):
             _qrcode = data["data"]["payParam"]["code_url"]
-            _ts = int(time.mktime(time.localtime()))
             print("请使用微信/QQ/支付宝扫描二维码完成支付")
             print("请使用微信/QQ/支付宝扫描二维码完成支付")
             print("请使用微信/QQ/支付宝扫描二维码完成支付\n")
             print(f"若二维码显示异常请扫描程序目录下 ticket_{str(_orderId)}.png 图片文件的二维码")
             print(f"若二维码显示异常请扫描程序目录下 ticket_{str(_orderId)}.png 图片文件的二维码")
             print(f"若二维码显示异常请扫描程序目录下 ticket_{str(_orderId)}.png 图片文件的二维码")
+            _ts = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(self.ntp_client.request('ntp.aliyun.com').tx_time))
             qr_gen = qrcode.QRCode()
             qr_gen.add_data(_qrcode)
             qr_gen.print_ascii()
-            qr_gen.make_image().save(f'{str(_orderId)}.png')
+            qr_gen.make_image().save(f'ticket_{str(_orderId)}.png')
             # print(qrcode)
+            print(f'\n二维码生成时间 (NTP)：{_ts}')
             return 1
         else:
             return 0

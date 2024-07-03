@@ -3,3 +3,5 @@ dist/
 *.spec
 __pycache__/
 user_data.json
+ticket_*.png
+*.exe
