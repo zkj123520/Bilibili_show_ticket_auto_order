@@ -4,3 +4,4 @@ plyer
 qrcode[pil]
 bili-ticket-gt-python
 requests
+ntplib
