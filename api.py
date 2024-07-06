@@ -25,7 +25,7 @@ class Api:
     """
     API操作
     """
-    def __init__(self,proxies=None,specificID=None,sleepTime=0.15,token=None):
+    def __init__(self,proxies=None,specificID=None,sleepTime=0.15,token=None,phone=None):
         self.proxies=proxies
         self.specificID=specificID
         self.headers = {
@@ -60,6 +60,7 @@ class Api:
         self.selectedScreen = 0
         self.selectedTicket = 0
         self.ntp_client = ntplib.NTPClient()
+        self.validatePhoneNum = str(phone) if phone else str()
         # ALL_USER_DATA_LIST = [""]
 
     def load_cookie(self):
@@ -238,8 +239,14 @@ class Api:
         return validate
     
     def phoneCheckPass(self, tel, telLen):
-        phone = input(f'请输入哔哩哔哩账号绑定的{telLen}位完整手机号码 {tel}：')
-        return phone
+        if len(self.validatePhoneNum) == telLen and tel[0-2] in self.validatePhoneNum:
+            return self.validatePhoneNum
+        else:
+            phone = input('配置文件内预留验证手机号码与要求不符，请在此重新输入:')
+            if len(phone) == telLen and tel[0-2] in phone:
+                return phone
+            else:
+                return self.phoneCheckPass(tel,telLen)
 
     def tokenGet(self):
         # 获取token

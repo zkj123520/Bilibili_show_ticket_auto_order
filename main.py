@@ -13,6 +13,7 @@ proxies = None if a[0].split("=")[1].strip() == "None" else a[0].split("=")[1].s
 specificID = None if a[1].split("=")[1].strip() == "None" else a[1].split("=")[1].strip()
 sleep = eval(a[2].split("=")[1].strip())
 token = None if a[3].split("=")[1].strip() == "None" else a[3].split("=")[1].strip()
+phone = None if a[4].split("=")[1].strip() == "None" else a[4].split("=")[1].strip()
 
 if __name__ == '__main__':
 	if not os.path.exists("url"):
@@ -27,4 +28,4 @@ if __name__ == '__main__':
 	print('!!! 仅供学习使用，请在下载后24小时之内删除 !!!')
 	print('!!! 仅供学习使用，请在下载后24小时之内删除 !!!')
 	print('!!! 仅供学习使用，请在下载后24小时之内删除 !!!\n')
-	Api(proxies=proxies,specificID=specificID,sleepTime=sleep,token=token).start()
+	Api(proxies=proxies,specificID=specificID,sleepTime=sleep,token=token,phone=phone).start()
