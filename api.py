@@ -41,7 +41,7 @@ class Api:
             "Sec-Fetch-Dest":"document",
             "Cookie":"a=b;",
             "Accept": "*/*",
-            "Accept-Language": "zh-CN,zh;q=0.9",
+            "Accept-Language": "zh-CN;q=0.9",
             "Accept-Encoding": "",
             "Connection": "keep-alive"
         }
@@ -239,14 +239,11 @@ class Api:
         return validate
     
     def phoneCheckPass(self, tel, telLen):
-        if len(self.validatePhoneNum) == telLen and tel[0-2] in self.validatePhoneNum:
+        print(f'正在从配置文件补全手机号码：{tel}, {telLen}')
+        if(self.validatePhoneNum!='0'):
             return self.validatePhoneNum
         else:
-            phone = input('配置文件内预留验证手机号码与要求不符，请在此重新输入:')
-            if len(phone) == telLen and tel[0-2] in phone:
-                return phone
-            else:
-                return self.phoneCheckPass(tel,telLen)
+            self.error_handle('请在配置文件中预留哔哩哔哩账号绑定的手机号。')
 
     def tokenGet(self):
         # 获取token
@@ -308,6 +305,7 @@ class Api:
                         "validate": validate
                     }
                 elif __data.get('data').get('type')=='phone':
+                    token = __data["data"]["token"]
                     _payload = {
                         "code": self.phoneCheckPass(__data['data']['phone']['tel'], __data['data']['phone']['telLen']),
                         "csrf": self.getCSRF(),
