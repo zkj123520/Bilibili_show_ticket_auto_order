@@ -15,9 +15,7 @@ from time import sleep
 from urllib import request
 from urllib.request import Request as Reqtype
 from urllib.parse import urlencode
-from geetest import dealCode
 from plyer import notification as trayNotify
-import ntplib
 
 
 
@@ -29,19 +27,18 @@ class Api:
         self.proxies=proxies
         self.specificID=specificID
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.1.4.514 Safari/537.36",
-            "Referer":"https://mall.bilibili.com/",
-            "Origin":"https://mall.bilibili.com/",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+            "Referer":"https://show.bilibili.com/",
+            "Origin":"https://show.bilibili.com/",
             "Pregma":"no-cache",
             "Cache-Control":"max-age=0",
-            "Upgrade-Insecure-Requests":"1",
             "Sec-Fetch-Site":"none",
             "Sec-Fetch-Mode":"navigate",
             "Sec-Fetch-User":"?1",
             "Sec-Fetch-Dest":"document",
             "Cookie":"a=b;",
             "Accept": "*/*",
-            "Accept-Language": "zh-CN;q=0.9",
+            "Accept-Language": "zh-CN,zh;q=0.9",
             "Accept-Encoding": "",
             "Connection": "keep-alive"
         }
@@ -59,7 +56,6 @@ class Api:
         self.userCountLimit = ""
         self.selectedScreen = 0
         self.selectedTicket = 0
-        self.ntp_client = ntplib.NTPClient()
         self.validatePhoneNum = str(phone) if phone else str()
         # ALL_USER_DATA_LIST = [""]
 
@@ -213,29 +209,34 @@ class Api:
             click = bili_ticket_gt_python.ClickPy()
             slide = bili_ticket_gt_python.SlidePy()
 
-            (c, s) = slide.get_c_s(gt, challenge)
+            (_, _) = slide.get_c_s(gt, challenge)
             _type = slide.get_type(gt, challenge)
-            print(_type)
             if _type == "click":
                 (c, s, args) = click.get_new_c_s_args(gt, challenge)
                 before_calculate_key = time.time()
                 key = click.calculate_key(args)
+                #rt固定即可
+                #此函数是使用项目目录下的click.exe生成w参数，如果文件不存在会报错，你也可以自己接入生成w的逻辑函数
                 w = click.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
+                #点选验证码生成w后需要等待2秒提交
                 w_use_time = time.time() - before_calculate_key
+                print("w生成时间：", w_use_time)
                 if w_use_time < 2:
                     time.sleep(2 - w_use_time)
                 (msg, validate) = click.verify(gt, challenge, w)
+                print(msg, validate)
             else:
                 (c, s, args) = slide.get_new_c_s_args(gt, challenge)
+                #注意滑块验证码这里要刷新challenge
                 challenge = args[0]
                 key = slide.calculate_key(args)
+                #rt固定即可
+                #此函数是使用项目目录下的slide.exe生成w参数，如果文件不存在会报错，你也可以自己接入生成w的逻辑函数
                 w = slide.generate_w(key, gt, challenge, str(c), s, "abcdefghijklmnop")
                 (msg, validate) = slide.verify(gt, challenge, w)
-            print(_type, validate)
+                print(msg, validate)
         except Exception as e:
-            print(f"Geetest自动化检测出错。错误代码：{e}")
-            sleep(2)
-            return self.geetestPass(gt, challenge)
+            self.error_handle(f'biliTicker_gt 爆了 {e}')
         return validate
     
     def phoneCheckPass(self, tel, telLen):
@@ -331,9 +332,9 @@ class Api:
                 url_ = "https://show.bilibili.com/api/ticket/project/getV2?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"] + "&requestSource=pc-new"
                 data_ = self._http(url_,True)
                 time_s = data_["data"]["screen_list"][self.selectedScreen]["ticket_list"][self.selectedTicket]['saleStart']
+                time_x = time.time()
                 if int(time.time())<time_s:
-                    time_x = self.ntp_client.request('ntp.aliyun.com').tx_time
-                    print("未开票，正在等待 开票时间:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_s)), "请求发起时间(阿里云授时):", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_x)))
+                    print("未开票，正在等待 开票时间:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_s)), "请求发起时间:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_x)))
                     for i in range(time_s - int(time_x), 0, -1):
                         print("\r剩余时间：{}s".format(i), end="", flush=True)
                         time.sleep(1)
@@ -345,7 +346,7 @@ class Api:
                 self.error_handle('活动收摊了，下次要快点哦')
             else:
                 if not data["data"]:
-                    timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(self.ntp_client.request('ntp.aliyun.com').tx_time)) + ":"
+                    timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) + ":"
                     print(timestr,"失败信息: ",data["code"],data["msg"])
                     return 1
                 if data["data"]["token"]:
@@ -436,9 +437,9 @@ class Api:
         if data:
             if data["errno"] == 0:
                 if self.checkOrder(data["data"]["token"],data["data"]["orderId"]):
-                    _ts = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(self.ntp_client.request('ntp.aliyun.com').tx_time))
-                    print("已成功抢到票, 请在10分钟内完成支付。通知发送时间 (NTP):",_ts)
-                    trayNotifyMessage = _ts+" (NTP) 已成功抢到票, 请在10分钟内完成支付" + "\n" + "购票人："
+                    _ts = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+                    print("已成功抢到票, 请在10分钟内完成支付。通知发送时间 (本地):",_ts)
+                    trayNotifyMessage = _ts+" (本地) 已成功抢到票, 请在10分钟内完成支付" + "\n" + "购票人："
                     # + thisBuyerInfo + self.selectedTicketInfo + "\n"
                     # Add buyer info
                     if "buyer_info" in payload:
@@ -488,7 +489,7 @@ class Api:
         return 0
 
     def checkOrder(self,_token,_orderId):
-        timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(self.ntp_client.request('ntp.aliyun.com').tx_time))+":"
+        timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))+":"
         print(timestr, "下单成功！正在检查票务状态...请稍等")
         self.tray_notify("下单成功", "正在检查票务状态...请稍等", "./ico/info.ico", timeout=5)
         # sleep(5)
@@ -514,13 +515,13 @@ class Api:
             print(f"若二维码显示异常请扫描程序目录下 ticket_{str(_orderId)}.png 图片文件的二维码")
             print(f"若二维码显示异常请扫描程序目录下 ticket_{str(_orderId)}.png 图片文件的二维码")
             print(f"若二维码显示异常请扫描程序目录下 ticket_{str(_orderId)}.png 图片文件的二维码")
-            _ts = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(self.ntp_client.request('ntp.aliyun.com').tx_time))
+            _ts = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
             qr_gen = qrcode.QRCode()
             qr_gen.add_data(_qrcode)
             qr_gen.print_ascii()
             qr_gen.make_image().save(f'ticket_{str(_orderId)}.png')
             # print(qrcode)
-            print(f'\n二维码生成时间 (NTP)：{_ts}')
+            print(f'\n二维码生成时间：{_ts}')
             return 1
         else:
             return 0
