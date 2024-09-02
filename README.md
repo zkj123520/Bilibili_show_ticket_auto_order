@@ -108,6 +108,12 @@ python main.py      //抢票
 python geetest.py   //极验滑块验证（暂时废弃）
 ```
 
+### 自行打包
+
+```shell
+pyinstaller -F main.py --hidden-import plyer.platforms.win.notification -i ico/pyinstaller_logo.png
+```
+
 ### 新功能：微信公众号推送结果
 
 需要关注pushplus微信公众号，关注后激活，然后点击个人中心-获取token，在config.txt中填入token即可在需要验证或者抢票成功后收到微信公众号通知
