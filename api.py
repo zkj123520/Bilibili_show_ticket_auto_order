@@ -85,6 +85,7 @@ class Api:
             else:
                 j = j[list(j.keys())[0]]
                 self.user_data["username"],self.headers["Cookie"] = j[0],j[1]
+        print("您登录的账号UID为: ",self.user_data["username"])
 
             
     def _http(self,url,j=False,data=None,raw=False):
