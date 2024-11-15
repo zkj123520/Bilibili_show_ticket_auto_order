@@ -149,9 +149,12 @@ class Api:
     def getExpressFee(self):
         url = "https://show.bilibili.com/api/ticket/project/get?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"]
         data = self._http(url,True)
-        if not data["data"]:
-            print(data)
-            return 1
+        if data:
+            if not data["data"]:
+                print(data)
+                return 1
+        else:
+            return 0
         e = data["data"]["express_fee"]
         if(e == -1 or e == -2):
             return 0
