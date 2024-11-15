@@ -11,6 +11,7 @@ import sys
 import http.cookies
 import qrcode
 import bili_ticket_gt_python
+import ntplib
 from time import sleep
 from urllib import request
 from urllib.request import Request as Reqtype
@@ -135,8 +136,9 @@ class Api:
         self.setAuthType(data)
 
         # print(self.user_data["auth_type"])
-        self.user_data["screen_id"],self.user_data["sku_id"],self.user_data["pay_money"],self.userCountLimit = self.menu("GET_ORDER_IF",data["data"])
-        if(data["data"]["has_paper_ticket"]):
+        self.user_data["screen_id"],self.user_data["sku_id"],self.user_data["pay_money"],self.userCountLimit,self.deliveryType = self.menu("GET_ORDER_IF",data["data"])
+        if(self.deliveryType != 1): # 临时判断法，其他的type不知道只指向什么
+                                    # 测试链接 https://show.bilibili.com/platform/detail.html?id=94306 上海·TOGENASHI TOGEARI Live「凛音の理」
             a = self.addressInfo()
             fa = a["prov"]+a["city"]+a["area"]+a["addr"]
             self.user_data["deliver_info"] = {}
@@ -333,10 +335,13 @@ class Api:
                 url_ = "https://show.bilibili.com/api/ticket/project/getV2?version=134&id=" + self.user_data["project_id"] + "&project_id="+ self.user_data["project_id"] + "&requestSource=pc-new"
                 data_ = self._http(url_,True)
                 time_s = data_["data"]["screen_list"][self.selectedScreen]["ticket_list"][self.selectedTicket]['saleStart']
-                time_x = time.time()
-                if int(time.time())<time_s:
+                # time_x = time.time()
+                ntp_resp = ntplib.NTPClient().request('ntp.aliyun.com')
+                time_x = ntp_resp.tx_time - ntp_resp.offset
+                # if int(time.time()) < time_s:
+                if int(time_x) < (time_s-1):
                     print("未开票，正在等待 开票时间:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_s)), "请求发起时间:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_x)))
-                    for i in range(time_s - int(time_x), 0, -1):
+                    for i in range(time_s - int(time_x) - 1, 0, -1):
                         print("\r剩余时间：{}s".format(i), end="", flush=True)
                         time.sleep(1)
                 else:
@@ -461,7 +466,7 @@ class Api:
                     return 1
                 else:
                     print("糟糕，是张假票(同时锁定一张票，但是被其他人抢走了)\n马上重新开始抢票")
-                    self.tray_notify("抢票失败", "糟糕，是张假票(同时锁定一张票，但是被其他人抢走了)\n马上重新开始抢票", "./ico/failed.ico", timeout=8)
+                    # self.tray_notify("抢票失败", "糟糕，是张假票(同时锁定一张票，但是被其他人抢走了)\n马上重新开始抢票", "./ico/failed.ico", timeout=8)
             elif data["errno"] == 209002:
                 print(timestr,"未获取到购买人信息")
             elif "10005" in str(data["errno"]):    # Token过期
@@ -492,7 +497,7 @@ class Api:
     def checkOrder(self,_token,_orderId):
         timestr = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))+":"
         print(timestr, "下单成功！正在检查票务状态...请稍等")
-        self.tray_notify("下单成功", "正在检查票务状态...请稍等", "./ico/info.ico", timeout=5)
+        # self.tray_notify("下单成功", "正在检查票务状态...请稍等", "./ico/info.ico", timeout=5)
         # sleep(5)
         # url = "https://show.bilibili.com/api/ticket/order/list?page=0&page_size=10"
         # data = self._http(url,True)
@@ -528,6 +533,7 @@ class Api:
             return 0
 
     def error_handle(self,msg):
+        self.tray_notify("发生错误", msg, "./ico/failed.ico", timeout=120)
         print(msg)
         os.system("pause")
         sys.exit(0)
@@ -558,7 +564,12 @@ class Api:
             print("已选择：", data["screen_list"][date]["name"])
             print("\n请输入票种并按回车继续，格式例如 1")
             for i in range(len(data["screen_list"][date]["ticket_list"])):
-                print(str(i+1) + ":",data["screen_list"][date]["ticket_list"][i]["desc"],"-",data["screen_list"][date]["ticket_list"][i]["price"]//100,"RMB",data["screen_list"][date]["ticket_list"][i]["sale_flag"]["display_name"])
+                link_sc_name = str("")
+                if not data["screen_list"][date]["ticket_list"][i]['link_sc_name'] == None:
+                    link_sc_name = "【联票】关联场次: "
+                    for o in data["screen_list"][date]["ticket_list"][i]['link_sc_name']:
+                        link_sc_name += str(o)+' '
+                print(str(i+1) + ":",data["screen_list"][date]["ticket_list"][i]["desc"],"-",data["screen_list"][date]["ticket_list"][i]["price"]//100,"RMB",data["screen_list"][date]["ticket_list"][i]["sale_flag"]["display_name"],link_sc_name)
             choice = input("票种序号 >>> ").strip()
             try:
                 choice = int(choice) - 1
@@ -570,7 +581,7 @@ class Api:
             print("\n已选择：", self.selectedTicketInfo)
             self.selectedScreen = date
             self.selectedTicket = choice
-            return data["screen_list"][date]["id"],data["screen_list"][date]["ticket_list"][choice]["id"],data["screen_list"][date]["ticket_list"][choice]["price"],data["screen_list"][date]["ticket_list"][choice]["static_limit"]["num"]
+            return data["screen_list"][date]["id"],data["screen_list"][date]["ticket_list"][choice]["id"],data["screen_list"][date]["ticket_list"][choice]["price"],data["screen_list"][date]["ticket_list"][choice]["static_limit"]["num"],data["screen_list"][date]['delivery_type']
         elif mtype == "GET_ID_INFO":
             if not data:
                 self.error_handle("用户信息为空，请登录或先上传身份信息并认证后重试")
