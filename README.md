@@ -2,7 +2,9 @@
 
 ## 本项目仅供Python编程学习、urllib/requests库网络请求操作学习、Selenium操作学习使用，请勿用于商业以及危害网站正常运行及数据安全用途
 
-## 截止到 2024/6/15 仍然可用
+## 截止到 2024/11/15 仍然可用
+
+![image](https://github.com/user-attachments/assets/2cd00f81-6194-4083-8060-eb933b6c3eba)
 
 <img width="273" alt="屏幕截图 2023-08-09 182035" src="https://github.com/fengx1a0/Bilibili_show_ticket_auto_order/assets/74698099/f0b2d1ad-928b-498d-9a79-f735e3f01c00">
 
