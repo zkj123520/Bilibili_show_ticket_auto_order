@@ -4,12 +4,6 @@
 
 ## 截止到 2024/11/15 仍然可用
 
-![image](https://github.com/user-attachments/assets/2cd00f81-6194-4083-8060-eb933b6c3eba)
-
-<img width="273" alt="屏幕截图 2023-08-09 182035" src="https://github.com/fengx1a0/Bilibili_show_ticket_auto_order/assets/74698099/f0b2d1ad-928b-498d-9a79-f735e3f01c00">
-
-<img width="277" alt="屏幕截图 2023-08-09 182012" src="https://github.com/fengx1a0/Bilibili_show_ticket_auto_order/assets/74698099/4363ff9a-23a7-4f31-b0ea-0919ed1279d1">
-
 > 本软件无法保证 100% 命中率和 100% 不受哔哩哔哩安全团队行为风险控制限制，一切交给天意
 >
 > 本软件可能无法及时跟进哔哩哔哩/极验Geetest验证码机制更新，望知悉
@@ -26,95 +20,37 @@
 
 本脚本仅供学习交流使用, 不得用于商业用途, 如有侵权请联系删除
 
-<img src="images\image-20230708221711220.png" alt="image-20230708221711220" style="zoom:50%;" />
+## 功能介绍
 
-<img src="images/a.png" alt="image-20230708221143842" style="zoom:50%;" />
+纯api请求。
 
-## 致谢 from fengx1ao
+命令行界面。
 
-以下排名不分先后，我也不想搞的攀比起来，因为很多都是学生，原则上我是不收赞助的，大家太热情了：
+不建议多开脚本抢票。（如需多开，请重新在其他文件目录下克隆并运行）
 
-------------------------------------------------++++
-
-```
-晚安乃琳Queen
-kankele
-倔强
-宵宫
-yxw
-星海云梦
-穆桉
-mizore
-傩祓
-CChhdCC
-w2768
-iiiiimilet
-利维坦战斧
-路人
-Impact
-骤雨初歇
-明月夜
-晓读
-Simpson
-Goognaloli
-闹钟
-LhiaS
-洛天华
-猪猪侠
-awasl
-房Z
-浙江大学第一深情
-superset245
-ChinoHao
-神秘的miku
-Red_uncle
-czpwpq
-```
-
-------------------------------------------------++++
-
-
-## 功能截图
-
-纯api请求
+已接入PushPlus推送。
 
 目前已经支持漫展演出等的 无证 / 单证 / 一人一证 的购买
 
-<img src="images/image-20230708014050624.png" alt="image-20230708014050624" style="zoom:50%;" />
-
-<img src="images\image-20230708014124395.png" alt="image-20230708014124395" style="zoom:50%;" />
 
 ## 使用
 
-相关内容感谢@123485k的提交
+首先电脑端禁止抢票是前端限制，使用特殊的办法电脑也能抢；其次脚本是直接与后端通讯，不经过前端，得到的数据也会比一般看到的更多一些。所以无论怎么限制电脑端，怎么不能抢，人能做到的，脚本也能做到
+登录和抢票分开的，先运行登录.exe，登陆后再运行抢票.exe
 
-### 执行exe
-
-登录和抢票分开的，先运行登录.exe，登陆后再运行抢票.exe，运行了之后不要急着选，先把验证.exe启动起来
-
-不需要依赖
-
-如果运行失败的请安装依赖[Edgewebdriver](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/)
+第一次使用务必先运行登录.exe
 
 ### 执行脚本
 
-请确保引用的库安装正常。
+安装所需依赖
 
-```shell
 pip install -r requirements.txt
-```
 
-```shell
+依次运行
+
 python login.py     //登录.exe
 python main.py      //抢票
 python geetest.py   //极验滑块验证（暂时废弃）
-```
-
-### 自行打包
-
-```shell
-pyinstaller -F main.py --hidden-import plyer.platforms.win.notification -i ico/pyinstaller_logo.png
-```
 
 ### 新功能：微信公众号推送结果
 
@@ -129,14 +65,18 @@ config.txt为配置文件，不指定值为None
 - sleep设置每次抢票请求间隔时间
 - token设置pushplus的个人token
 
+## 关于风控
+
+bilibili现已加强风控和政策，抢骗面临的一切后果自行负责，与开发者无关
+
+该脚本不具备风控滑块验证能力，请自行斟酌使用
+
+## 关于代理
+
+多开在4以下的无需代理
+
+多开超过4的请自行查找代理并添加至config.txt
+
 ## 问题报告
 
 提issue即可
-
-## 更新
-
-脱离浏览器的新登录模块
-
-库存检测
-
-极验验证码自动化解决方案集成
