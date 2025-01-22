@@ -1,4 +1,4 @@
-# Bilibili_show_ticket_auto_order
+# Bilibil-auto-ticket
 
 ## 本项目仅供Python编程学习、urllib/requests库网络请求操作学习、Selenium操作学习使用，请勿用于商业以及危害网站正常运行及数据安全用途
 
