@@ -42,11 +42,13 @@
 
 ### 执行脚本
 
-```安装所需依赖
+安装所需依赖
+```shell
 pip install -r requirements.txt
 ```
 
-```依次执行
+依次运行
+```shell
 python login.py     //登录.exe
 python main.py      //抢票
 python geetest.py   //极验滑块验证（暂时废弃）
